@@ -51,12 +51,12 @@ defmodule Pattern.Code do
   @doc false
   # Puts prefix recursively to expand embedded patterns.
   def with_prefix({:access, keys}, prefix) do
-    {:access, prefix ++ keys}
+    code_access(prefix ++ keys)
   end
 
   def with_prefix({op, args}, prefix) when is_atom(op) and is_list(args) do
     args = Enum.map(args, &with_prefix(&1, prefix))
-    {op, args}
+    code_op(op, args)
   end
 
   def with_prefix(node, _prefix), do: node
@@ -67,7 +67,6 @@ defmodule Pattern.Code do
   @additional_operators [:is_nil, :to_string, :to_charlist, :is_map]
   defp walk({op, _, args} = node, _vars, _env) when op in @additional_operators do
     if Enum.any?(args, &access_code_exists?(&1)) do
-      # literal tuple
       code_op(op, args)
     else
       # static expression
@@ -134,7 +133,6 @@ defmodule Pattern.Code do
       Macro.operator?(fun, length(args)) ->
         # Operator
         if Enum.any?(args, &access_code_exists?(&1)) do
-          # literal tuple
           code_op(fun, args)
         else
           node
@@ -185,7 +183,6 @@ defmodule Pattern.Code do
           end)
         end)
 
-      # literal tuple
       code_call(module, fun, args)
     else
       node
@@ -203,8 +200,6 @@ defmodule Pattern.Code do
     end
   end
 
-  @spec t === t :: t
-  def left === right, do: {:==, [left, right]}
   @spec code_and(t, t) :: t
   def code_and(left, right), do: {:and, [left, right]}
   @spec code_or(t, t) :: t
