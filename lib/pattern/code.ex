@@ -61,20 +61,19 @@ defmodule Pattern.Code do
 
   def with_prefix(node, _prefix), do: node
 
-  @spec walk(ast, vars, Macro.Env.t()) :: ast
-  # Additional operators
-  # input: `is_nil(x)`
   @additional_operators [:is_nil, :to_string, :to_charlist, :is_map]
+
+  @spec walk(ast, vars, Macro.Env.t()) :: ast
+  # input: `is_nil(x)`
   defp walk({op, _, args} = node, _vars, _env) when op in @additional_operators do
     if Enum.any?(args, &access_code_exists?(&1)) do
       code_op(op, args)
     else
-      # static expression
       node
     end
   end
 
-  # Skip . operator (field access is handled in below)
+  # Skips . operator (field access is handled in below)
   defp walk({:., _, _} = node, _vars, _env), do: node
 
   # input: `value.key`
@@ -107,11 +106,9 @@ defmodule Pattern.Code do
         end
 
       Enum.any?(args, &access_code_exists?(&1)) ->
-        # Function call
         code_call(module, function, args)
 
       true ->
-        # static expression
         node
     end
   end
@@ -131,7 +128,6 @@ defmodule Pattern.Code do
     cond do
       # input `value == 42`
       Macro.operator?(fun, length(args)) ->
-        # Operator
         if Enum.any?(args, &access_code_exists?(&1)) do
           code_op(fun, args)
         else
@@ -140,7 +136,6 @@ defmodule Pattern.Code do
 
       # input `imported_func(arg1, arg2)`
       args != [] ->
-        # Function calls
         gen_call(node, vars, env)
 
       true ->
