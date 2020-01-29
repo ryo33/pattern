@@ -1,16 +1,16 @@
-defmodule Cizen.Filter.CodeTest do
+defmodule Pattern.CodeTest do
   use ExUnit.Case
 
-  alias Cizen.Filter
-  require Cizen.Filter
+  alias Pattern
+  require Pattern
 
   defmodule(A, do: defstruct([:key1, :key2, :b]))
   defmodule(B, do: defstruct([:key1, :key2, :a]))
   defmodule(C, do: defstruct([:key1, :key2, :b]))
 
-  test "creates a filter with is_nil" do
-    filter =
-      Filter.new(fn %A{key1: a} ->
+  test "creates a pattern with is_nil" do
+    pattern =
+      Pattern.new(fn %A{key1: a} ->
         is_nil(a)
       end)
 
@@ -18,25 +18,25 @@ defmodule Cizen.Filter.CodeTest do
             [
               {:and, [{:is_map, [{:access, []}]}, {:==, [{:access, [:__struct__]}, A]}]},
               {:is_nil, [{:access, [:key1]}]}
-            ]} == filter.code
+            ]} == pattern.code
 
     {:and,
      [
        and: [
          ==: [
            {:and,
-            [{:is_map, [access: []]}, {:==, [{:access, [:__struct__]}, Cizen.Filter.CodeTest.A]}]},
+            [{:is_map, [access: []]}, {:==, [{:access, [:__struct__]}, Pattern.CodeTest.A]}]},
            false
          ],
-         and: [is_map: [access: []], ==: [{:access, [:__struct__]}, Cizen.Filter.CodeTest.A]]
+         and: [is_map: [access: []], ==: [{:access, [:__struct__]}, Pattern.CodeTest.A]]
        ],
        is_nil: [access: [:key1]]
      ]}
   end
 
-  test "creates a filter with to_string" do
-    filter =
-      Filter.new(fn %A{key1: a} ->
+  test "creates a pattern with to_string" do
+    pattern =
+      Pattern.new(fn %A{key1: a} ->
         to_string(a)
       end)
 
@@ -44,12 +44,12 @@ defmodule Cizen.Filter.CodeTest do
             [
               {:and, [{:is_map, [{:access, []}]}, {:==, [{:access, [:__struct__]}, A]}]},
               {:to_string, [{:access, [:key1]}]}
-            ]} == filter.code
+            ]} == pattern.code
   end
 
-  test "creates a filter with to_charlist" do
-    filter =
-      Filter.new(fn %A{key1: a} ->
+  test "creates a pattern with to_charlist" do
+    pattern =
+      Pattern.new(fn %A{key1: a} ->
         to_charlist(a)
       end)
 
@@ -57,23 +57,23 @@ defmodule Cizen.Filter.CodeTest do
             [
               {:and, [{:is_map, [{:access, []}]}, {:==, [{:access, [:__struct__]}, A]}]},
               {:to_charlist, [{:access, [:key1]}]}
-            ]} == filter.code
+            ]} == pattern.code
   end
 
-  test "creates a filter with arguments" do
+  test "creates a pattern with arguments" do
     value1 = "value1"
-    filter = Filter.new(fn %A{key1: a} -> a == value1 end)
+    pattern = Pattern.new(fn %A{key1: a} -> a == value1 end)
 
     assert {:and,
             [
               {:and, [{:is_map, [{:access, []}]}, {:==, [{:access, [:__struct__]}, A]}]},
               {:==, [{:access, [:key1]}, "value1"]}
-            ]} == filter.code
+            ]} == pattern.code
   end
 
-  test "nested filter" do
-    filter =
-      Filter.new(fn %C{key1: a, b: %B{key1: b, a: %A{key2: c}}} ->
+  test "nested pattern" do
+    pattern =
+      Pattern.new(fn %C{key1: a, b: %B{key1: b, a: %A{key2: c}}} ->
         a == "a" and b == "b" and c == "c"
       end)
 
@@ -101,18 +101,18 @@ defmodule Cizen.Filter.CodeTest do
           ]}
        ]}
 
-    assert expected == filter.code
+    assert expected == pattern.code
   end
 
-  test "embedded filter" do
-    b_filter =
-      Filter.new(fn %B{key1: a, a: %A{key2: b}} ->
+  test "embedded pattern" do
+    b_pattern =
+      Pattern.new(fn %B{key1: a, a: %A{key2: b}} ->
         a == "b" and b == "c"
       end)
 
-    filter =
-      Filter.new(fn %C{key1: a, b: b} ->
-        a == "a" and Filter.match?(b_filter, b)
+    pattern =
+      Pattern.new(fn %C{key1: a, b: b} ->
+        a == "a" and Pattern.match?(b_pattern, b)
       end)
 
     assert {:and,
@@ -140,15 +140,15 @@ defmodule Cizen.Filter.CodeTest do
                      ]}
                   ]}
                ]}
-            ]} == filter.code
+            ]} == pattern.code
   end
 
-  test "embedded Filter.new" do
-    filter =
-      Filter.new(fn %C{key1: a, b: b} ->
+  test "embedded Pattern.new" do
+    pattern =
+      Pattern.new(fn %C{key1: a, b: b} ->
         a == "a" and
-          Filter.match?(
-            Filter.new(fn %B{key1: a, a: %A{key2: b}} ->
+          Pattern.match?(
+            Pattern.new(fn %B{key1: a, a: %A{key2: b}} ->
               a == "b" and b == "c"
             end),
             b
@@ -180,7 +180,7 @@ defmodule Cizen.Filter.CodeTest do
                      ]}
                   ]}
                ]}
-            ]} == filter.code
+            ]} == pattern.code
   end
 
   defmodule TestModule do
@@ -190,8 +190,8 @@ defmodule Cizen.Filter.CodeTest do
   test "transforms module function calls" do
     c = "c"
 
-    filter =
-      Filter.new(fn %A{key1: a, key2: b} ->
+    pattern =
+      Pattern.new(fn %A{key1: a, key2: b} ->
         TestModule.func(c, "d") == TestModule.func(a, b)
       end)
 
@@ -205,17 +205,17 @@ defmodule Cizen.Filter.CodeTest do
                   {:call, [{TestModule, :func}, {:access, [:key1]}, {:access, [:key2]}]}
                 ]
               }
-            ]} == filter.code
+            ]} == pattern.code
   end
 
   test "transforms local function calls" do
     defmodule TestLocalFunctionModule do
       def local_function(a, b), do: {a, b}
 
-      def filter do
+      def pattern do
         c = "c"
 
-        Filter.new(fn %A{key1: a, key2: b} ->
+        Pattern.new(fn %A{key1: a, key2: b} ->
           local_function(local_function(a, "a"), b) == local_function(c, "d")
         end)
       end
@@ -235,7 +235,7 @@ defmodule Cizen.Filter.CodeTest do
                   ]},
                  {"c", "d"}
                ]}
-            ]} == TestLocalFunctionModule.filter().code
+            ]} == TestLocalFunctionModule.pattern().code
   end
 
   test "transforms imported function calls" do
@@ -243,8 +243,8 @@ defmodule Cizen.Filter.CodeTest do
 
     import TestModule
 
-    filter =
-      Filter.new(fn %A{key1: a, key2: b} ->
+    pattern =
+      Pattern.new(fn %A{key1: a, key2: b} ->
         func(func(a, "a"), b) == func(c, "d")
       end)
 
@@ -263,14 +263,14 @@ defmodule Cizen.Filter.CodeTest do
                   {"c", "d"}
                 ]}
              ]
-           } == filter.code
+           } == pattern.code
   end
 
   def test_fun(a, b, c, d, e), do: {a, b, c, d, e}
 
   test "use = in argument" do
-    filter =
-      Filter.new(fn %C{key1: a, b: %B{key1: b, a: %A{key2: c} = d}} = e ->
+    pattern =
+      Pattern.new(fn %C{key1: a, b: %B{key1: b, a: %A{key2: c} = d}} = e ->
         test_fun(a, b, c, d, e)
       end)
 
@@ -298,25 +298,25 @@ defmodule Cizen.Filter.CodeTest do
           ]}
        ]}
 
-    assert expected == filter.code
+    assert expected == pattern.code
   end
 
   test "all/1" do
     a = {:access, [:a]}
     b = {:access, [:b]}
     c = {:access, [:c]}
-    code = Filter.Code.all([a, b, c])
+    code = Pattern.Code.all([a, b, c])
     assert {:and, [a, {:and, [b, c]}]} == code
   end
 
   test "all/1 with one" do
     a = {:access, [:a]}
-    code = Filter.Code.all([a])
+    code = Pattern.Code.all([a])
     assert a == code
   end
 
   test "all/1 with empty list" do
-    code = Filter.Code.all([])
+    code = Pattern.Code.all([])
     assert true == code
   end
 
@@ -324,44 +324,44 @@ defmodule Cizen.Filter.CodeTest do
     a = {:access, [:a]}
     b = {:access, [:b]}
     c = {:access, [:c]}
-    code = Filter.Code.any([a, b, c])
+    code = Pattern.Code.any([a, b, c])
     assert {:or, [a, {:or, [b, c]}]} == code
   end
 
   test "any/1 with one" do
     a = {:access, [:a]}
-    code = Filter.Code.any([a])
+    code = Pattern.Code.any([a])
     assert a == code
   end
 
   test "any/1 with empty list" do
-    code = Filter.Code.any([])
+    code = Pattern.Code.any([])
     assert false == code
   end
 
   test "access fields with . operator" do
-    filter =
-      Filter.new(fn struct ->
+    pattern =
+      Pattern.new(fn struct ->
         struct.key1.key2.key3
       end)
 
-    assert {:access, [:key1, :key2, :key3]} == filter.code
+    assert {:access, [:key1, :key2, :key3]} == pattern.code
   end
 
   test "access fields with [] operator" do
     key2 = :key2
 
-    filter =
-      Filter.new(fn struct ->
+    pattern =
+      Pattern.new(fn struct ->
         struct[:key1][key2][:key3]
       end)
 
-    assert {:access, [:key1, :key2, :key3]} == filter.code
+    assert {:access, [:key1, :key2, :key3]} == pattern.code
   end
 
   test "access fields with both of . and []" do
-    filter =
-      Filter.new(fn struct ->
+    pattern =
+      Pattern.new(fn struct ->
         struct.key1[:key2].key3 == struct[:key1].key2[:key3]
       end)
 
@@ -369,12 +369,12 @@ defmodule Cizen.Filter.CodeTest do
             [
               {:access, [:key1, :key2, :key3]},
               {:access, [:key1, :key2, :key3]}
-            ]} == filter.code
+            ]} == pattern.code
   end
 
-  test "create filter without :__block__" do
-    filter =
-      Filter.new(fn %A{key1: a} ->
+  test "create pattern without :__block__" do
+    pattern =
+      Pattern.new(fn %A{key1: a} ->
         not a
       end)
 
@@ -382,14 +382,14 @@ defmodule Cizen.Filter.CodeTest do
             [
               {:and, [{:is_map, [{:access, []}]}, {:==, [{:access, [:__struct__]}, A]}]},
               {:not, [{:access, [:key1]}]}
-            ]} == filter.code
+            ]} == pattern.code
   end
 
   test "inline operators" do
     value = "a"
 
-    filter =
-      Filter.new(fn %A{key1: a} ->
+    pattern =
+      Pattern.new(fn %A{key1: a} ->
         is_nil(value) or true
       end)
 
@@ -397,11 +397,11 @@ defmodule Cizen.Filter.CodeTest do
             [
               {:and, [{:is_map, [{:access, []}]}, {:==, [{:access, [:__struct__]}, A]}]},
               true
-            ]} == filter.code
+            ]} == pattern.code
   end
 
   test "value in match" do
-    filter = Filter.new(fn %A{key1: 3, key2: %B{key1: 5}} -> true end)
+    pattern = Pattern.new(fn %A{key1: 3, key2: %B{key1: 5}} -> true end)
 
     expected =
       {:and,
@@ -419,13 +419,13 @@ defmodule Cizen.Filter.CodeTest do
           ]}
        ]}
 
-    assert expected == filter.code
+    assert expected == pattern.code
   end
 
   test "match with pin operator" do
     a = 3
     b = 5
-    filter = Filter.new(fn %A{key1: ^a, key2: %B{key1: ^b}} -> true end)
+    pattern = Pattern.new(fn %A{key1: ^a, key2: %B{key1: ^b}} -> true end)
 
     expected =
       {:and,
@@ -443,11 +443,11 @@ defmodule Cizen.Filter.CodeTest do
           ]}
        ]}
 
-    assert expected == filter.code
+    assert expected == pattern.code
   end
 
   test "match with same values" do
-    filter = Filter.new(fn %A{key1: a, key2: a, b: %B{key1: a}} -> true end)
+    pattern = Pattern.new(fn %A{key1: a, key2: a, b: %B{key1: a}} -> true end)
 
     expected =
       {:and,
@@ -464,12 +464,12 @@ defmodule Cizen.Filter.CodeTest do
           ]}
        ]}
 
-    assert expected == filter.code
+    assert expected == pattern.code
   end
 
   test "support multiple cases" do
-    filter =
-      Filter.new(fn
+    pattern =
+      Pattern.new(fn
         %A{key1: a} ->
           a == "a"
 
@@ -533,12 +533,12 @@ defmodule Cizen.Filter.CodeTest do
           ]}
        ]}
 
-    assert expected == filter.code
+    assert expected == pattern.code
   end
 
   test "support when guard" do
-    filter =
-      Filter.new(fn
+    pattern =
+      Pattern.new(fn
         %A{key1: a, key2: b} when is_nil(a) and not is_nil(b) -> "a"
         %A{key1: a} when a in [:a, :b, :c] -> "b"
       end)
@@ -585,6 +585,6 @@ defmodule Cizen.Filter.CodeTest do
           ]}
        ]}
 
-    assert expected == filter.code
+    assert expected == pattern.code
   end
 end

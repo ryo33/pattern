@@ -1,8 +1,8 @@
-defmodule Cizen.Filter.Dispatcher.Node do
+defmodule Pattern.Dispatcher.Node do
   @moduledoc false
 
-  alias Cizen.Filter
-  alias Cizen.Filter.Code
+  alias Pattern
+  alias Pattern.Code
 
   defstruct subscriptions: MapSet.new([]),
             operations: %{}
@@ -27,7 +27,7 @@ defmodule Cizen.Filter.Dispatcher.Node do
     %__MODULE__{subscriptions: subscriptions, operations: operations} = node
 
     Enum.reduce(operations, subscriptions, fn {operation, nodes}, subscriptions ->
-      value = Filter.eval(operation, struct)
+      value = Pattern.eval(operation, struct)
       node = Map.get(nodes, value, new())
       MapSet.union(subscriptions, get(node, struct))
     end)

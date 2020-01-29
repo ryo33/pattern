@@ -1,58 +1,58 @@
-defmodule Cizen.Filter do
+defmodule Pattern do
   @moduledoc """
-  Creates a filter.
+  Creates a pattern.
 
   ## Basic
 
-      Filter.new(
+      Pattern.new(
         fn %Event{body: %SomeEvent{field: value}} ->
           value == :a
         end
       )
 
-      Filter.new(
+      Pattern.new(
         fn %Event{body: %SomeEvent{field: :a}} -> true end
       )
 
       value = :a
-      Filter.new(
+      Pattern.new(
         fn %Event{body: %SomeEvent{field: ^value}} -> true end
       )
 
   ## With guard
 
-      Filter.new(
+      Pattern.new(
         fn %Event{source_saga_id: source} when not is_nil(source) -> true end
       )
 
   ## Matches all
 
-      Filter.new(fn _ -> true end)
+      Pattern.new(fn _ -> true end)
 
   ## Matches the specific type of struct
 
-      Filter.new(
+      Pattern.new(
         fn %Event{source_saga: %SomeSaga{}} -> true end
       )
 
-  ## Compose filters
+  ## Compose patterns
 
-      Filter.new(
+      Pattern.new(
         fn %Event{body: %SomeEvent{field: value}} ->
-          Filter.match?(other_filter, value)
+          Pattern.match?(other_pattern, value)
         end
       )
 
-  ## Multiple filters
+  ## Multiple patterns
 
-      Filter.any([
-        Filter.new(fn %Event{body: %Resolve{id: id}} -> id == "some id" end),
-        Filter.new(fn %Event{body: %Reject{id: id}} -> id == "some id" end)
+      Pattern.any([
+        Pattern.new(fn %Event{body: %Resolve{id: id}} -> id == "some id" end),
+        Pattern.new(fn %Event{body: %Reject{id: id}} -> id == "some id" end)
       ])
 
   ## Multiple cases
 
-      Filter.new(fn
+      Pattern.new(fn
         %Event{body: %SomeEvent{field: :ignore}} -> false
         %Event{body: %SomeEvent{field: value}} -> true
       end)
@@ -62,13 +62,13 @@ defmodule Cizen.Filter do
 
   defstruct code: true
 
-  alias Cizen.Filter.{Code, Compiler}
+  alias Pattern.{Code, Compiler}
 
   @doc """
-  Creates a filter with the given anonymous function.
+  Creates a pattern with the given anonymous function.
   """
-  defmacro new(filter) do
-    filter
+  defmacro new(pattern) do
+    pattern
     |> Macro.prewalk(fn
       {:when, _, [args, _guard]} ->
         args
@@ -87,7 +87,7 @@ defmodule Cizen.Filter do
     end)
     |> Elixir.Code.eval_quoted([], __CALLER__)
 
-    code = Compiler.compile(filter, __CALLER__)
+    code = Compiler.compile(pattern, __CALLER__)
 
     quote do
       %unquote(__MODULE__){
@@ -105,20 +105,20 @@ defmodule Cizen.Filter do
   end
 
   @doc """
-  Joins the given filters with `and`.
+  Joins the given patterns with `and`.
   """
   @spec all([t()]) :: t()
-  def all(filters) do
-    code = filters |> Enum.map(& &1.code) |> Code.all()
+  def all(patterns) do
+    code = patterns |> Enum.map(& &1.code) |> Code.all()
     %__MODULE__{code: code}
   end
 
   @doc """
-  Joins the given filters with `or`.
+  Joins the given patterns with `or`.
   """
   @spec any([t()]) :: t()
-  def any(filters) do
-    code = filters |> Enum.map(& &1.code) |> Code.any()
+  def any(patterns) do
+    code = patterns |> Enum.map(& &1.code) |> Code.any()
     %__MODULE__{code: code}
   end
 

@@ -1,6 +1,6 @@
-defmodule Cizen.Filter.Code do
+defmodule Pattern.Code do
   @moduledoc false
-  alias Cizen.Filter
+  alias Pattern
 
   @type t :: {:access, keys} | {:call, [{module, fun} | [term]]} | {atom, [term]} | term
   @type ast :: any
@@ -31,16 +31,16 @@ defmodule Cizen.Filter.Code do
   def any([code | tail]), do: code_or(code, any(tail))
 
   @doc false
-  @spec expand_embedded_filters(ast, Macro.Env.t()) :: t
-  def expand_embedded_filters(expression, env) do
+  @spec expand_embedded_patterns(ast, Macro.Env.t()) :: t
+  def expand_embedded_patterns(expression, env) do
     Macro.prewalk(expression, fn node ->
       case node do
-        {{:., _, [{:__aliases__, _, [:Filter]}, :new]}, _, _} ->
-          {filter, _} =
+        {{:., _, [{:__aliases__, _, [:Pattern]}, :new]}, _, _} ->
+          {pattern, _} =
             node
             |> Code.eval_quoted([], env)
 
-          filter
+          pattern
 
         node ->
           node
@@ -49,7 +49,7 @@ defmodule Cizen.Filter.Code do
   end
 
   @doc false
-  # Puts prefix recursively to expand embedded filters.
+  # Puts prefix recursively to expand embedded patterns.
   def with_prefix({:access, keys}, prefix) do
     {:access, prefix ++ keys}
   end
@@ -93,17 +93,17 @@ defmodule Cizen.Filter.Code do
     expanded_module = Macro.expand(module, env)
 
     cond do
-      expanded_module == Filter and function == :match? ->
-        # Embedded filter
+      expanded_module == Pattern and function == :match? ->
+        # Embedded pattern
         case args do
-          [%Filter{code: code}, {:access, keys}] ->
+          [%Pattern{code: code}, {:access, keys}] ->
             quote do
               unquote(__MODULE__).with_prefix(unquote(code), unquote(keys))
             end
 
-          [filter, {:access, keys}] ->
+          [pattern, {:access, keys}] ->
             quote do
-              unquote(__MODULE__).with_prefix(unquote(filter).code, unquote(keys))
+              unquote(__MODULE__).with_prefix(unquote(pattern).code, unquote(keys))
             end
         end
 

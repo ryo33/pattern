@@ -1,15 +1,15 @@
-defmodule Cizen.Filter.MixProject do
+defmodule Pattern.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :cizen_filter,
+      app: :pattern,
       version: "0.1.0",
       elixir: "~> 1.9",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      name: "Cizen.Filter",
-      source_url: "https://gitlab.com/cizen/filter",
+      name: "Pattern",
+      source_url: "https://gitlab.com/cizen/pattern",
       aliases: aliases(),
       test_coverage: [tool: ExCoveralls],
       preferred_cli_env: [

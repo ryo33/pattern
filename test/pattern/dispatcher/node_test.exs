@@ -1,7 +1,7 @@
-defmodule Cizen.Filter.Dispatcher.NodeTest do
+defmodule Pattern.Dispatcher.NodeTest do
   use ExUnit.Case, async: true
 
-  alias Cizen.Filter.Dispatcher.Node
+  alias Pattern.Dispatcher.Node
 
   setup do
     %{
