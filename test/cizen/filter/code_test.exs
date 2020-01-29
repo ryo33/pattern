@@ -19,6 +19,19 @@ defmodule Cizen.Filter.CodeTest do
               {:and, [{:is_map, [{:access, []}]}, {:==, [{:access, [:__struct__]}, A]}]},
               {:is_nil, [{:access, [:key1]}]}
             ]} == filter.code
+
+    {:and,
+     [
+       and: [
+         ==: [
+           {:and,
+            [{:is_map, [access: []]}, {:==, [{:access, [:__struct__]}, Cizen.Filter.CodeTest.A]}]},
+           false
+         ],
+         and: [is_map: [access: []], ==: [{:access, [:__struct__]}, Cizen.Filter.CodeTest.A]]
+       ],
+       is_nil: [access: [:key1]]
+     ]}
   end
 
   test "creates a filter with to_string" do
@@ -481,10 +494,9 @@ defmodule Cizen.Filter.CodeTest do
              [
                {:and,
                 [
-                  {:==,
+                  {:!,
                    [
-                     {:and, [{:is_map, [{:access, []}]}, {:==, [{:access, [:__struct__]}, A]}]},
-                     false
+                     {:and, [{:is_map, [{:access, []}]}, {:==, [{:access, [:__struct__]}, A]}]}
                    ]},
                   {:and,
                    [
@@ -498,22 +510,20 @@ defmodule Cizen.Filter.CodeTest do
              [
                {:and,
                 [
-                  {:==,
+                  {:!,
                    [
-                     {:and, [{:is_map, [{:access, []}]}, {:==, [{:access, [:__struct__]}, A]}]},
-                     false
+                     {:and, [{:is_map, [{:access, []}]}, {:==, [{:access, [:__struct__]}, A]}]}
                    ]},
                   {:and,
                    [
-                     {:==,
+                     {:!,
                       [
                         {:and,
                          [
                            {:and,
                             [{:is_map, [{:access, []}]}, {:==, [{:access, [:__struct__]}, B]}]},
                            {:==, [{:access, [:key2]}, "b"]}
-                         ]},
-                        false
+                         ]}
                       ]},
                      {:and, [{:is_map, [{:access, []}]}, {:==, [{:access, [:__struct__]}, C]}]}
                    ]}
@@ -553,7 +563,7 @@ defmodule Cizen.Filter.CodeTest do
           [
             {:and,
              [
-               {:==,
+               {:!,
                 [
                   {:and,
                    [
@@ -563,8 +573,7 @@ defmodule Cizen.Filter.CodeTest do
                         {:is_nil, [{:access, [:key1]}]},
                         {:not, [{:is_nil, [{:access, [:key2]}]}]}
                       ]}
-                   ]},
-                  false
+                   ]}
                 ]},
                {:and,
                 [

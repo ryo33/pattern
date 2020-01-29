@@ -62,7 +62,7 @@ defmodule Cizen.Filter do
 
   defstruct code: true
 
-  alias Cizen.Filter.Code
+  alias Cizen.Filter.{Code, Compiler}
 
   @doc """
   Creates a filter with the given anonymous function.
@@ -87,7 +87,7 @@ defmodule Cizen.Filter do
     end)
     |> Elixir.Code.eval_quoted([], __CALLER__)
 
-    code = Code.generate(filter, __CALLER__)
+    code = Compiler.compile(filter, __CALLER__)
 
     quote do
       %unquote(__MODULE__){
