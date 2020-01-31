@@ -203,5 +203,5 @@ defmodule Pattern.Code do
   @spec call_(module, atom, [term]) :: t
   def call_(module, function, args), do: {:call, [{module, function} | args]}
   @spec not_(t) :: t
-  def not_(code), do: {:not, [code]}
+  def not_(code), do: op_(:not, [code])
 end
