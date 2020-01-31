@@ -9,7 +9,7 @@ defmodule Pattern.Dispatcher.NodeTest do
         subscriptions: MapSet.new(["dummy subscription"]),
         operations: %{
           "dummy operation" => %{
-            true => %Node{}
+            true: %Node{}
           },
           {:access, [:dummy_key]} => %{
             "dummy operation" => %Node{}
@@ -40,7 +40,7 @@ defmodule Pattern.Dispatcher.NodeTest do
             node.operations,
             %{
               {:<>, ["a", "b"]} => %{
-                true => %Node{
+                true: %Node{
                   subscriptions: MapSet.new(["1"])
                 }
               }
@@ -99,15 +99,15 @@ defmodule Pattern.Dispatcher.NodeTest do
             node.operations,
             %{
               {:access, [:key1]} => %{
-                true => %Node{
+                true: %Node{
                   subscriptions: MapSet.new(["1"])
                 },
-                false => %Node{
+                false: %Node{
                   subscriptions: MapSet.new(["2"])
                 }
               },
               {:access, [:key2]} => %{
-                false => %Node{
+                false: %Node{
                   subscriptions: MapSet.new(["3"])
                 }
               }
@@ -156,16 +156,16 @@ defmodule Pattern.Dispatcher.NodeTest do
             node.operations,
             %{
               "a" => %{
-                true => %Node{
+                true: %Node{
                   operations: %{
                     "b" => %{
-                      true => %Node{
+                      true: %Node{
                         operations: %{
                           "c" => %{
-                            true => %Node{
+                            true: %Node{
                               operations: %{
                                 "d" => %{
-                                  true => %Node{
+                                  true: %Node{
                                     subscriptions: MapSet.new(["1"])
                                   }
                                 }
@@ -209,22 +209,22 @@ defmodule Pattern.Dispatcher.NodeTest do
             node.operations,
             %{
               "a" => %{
-                true => %Node{
+                true: %Node{
                   subscriptions: MapSet.new(["1"])
                 }
               },
               "b" => %{
-                true => %Node{
+                true: %Node{
                   subscriptions: MapSet.new(["1"])
                 }
               },
               "c" => %{
-                true => %Node{
+                true: %Node{
                   subscriptions: MapSet.new(["1"])
                 }
               },
               "d" => %{
-                true => %Node{
+                true: %Node{
                   subscriptions: MapSet.new(["1"])
                 }
               }
