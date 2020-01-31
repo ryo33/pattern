@@ -317,9 +317,9 @@ defmodule PatternTest do
   end
 
   test "pattern style" do
-    pattern = Pattern.new(%A{key1: a} when a in [:a, :b, :c])
+    pattern = Pattern.new(%A{key1: a})
 
     assert Pattern.eval(pattern.code, %A{key1: :a})
-    refute Pattern.eval(pattern.code, %A{key1: :d})
+    refute Pattern.eval(pattern.code, %B{key1: :a})
   end
 end

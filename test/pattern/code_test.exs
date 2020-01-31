@@ -504,9 +504,16 @@ defmodule Pattern.CodeTest do
     assert expected == pattern.code
   end
 
-  test "support pattern style" do
+  test "support pattern style with guard" do
     actual = Pattern.new(%A{key1: 3, key2: %B{key1: a}} when is_integer(a))
     filter = Pattern.new(fn %A{key1: 3, key2: %B{key1: a}} when is_integer(a) -> true end)
+
+    assert actual == filter
+  end
+
+  test "support pattern style with no guard" do
+    actual = Pattern.new(%A{key1: 3, key2: %B{key1: :value}})
+    filter = Pattern.new(fn %A{key1: 3, key2: %B{key1: :value}} -> true end)
 
     assert actual == filter
   end

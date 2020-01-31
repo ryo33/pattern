@@ -31,8 +31,18 @@ defmodule Pattern.Compiler do
   end
 
   # pattern style with guard
-  # input: `%{a: 1, b: 2} when 1`
+  # input: `%{a: value, b: 2} when is_nil(value)`
   def compile({:when, _, _} = pattern, env) do
+    {_vars, codes} = read_header(pattern, env)
+
+    codes
+    |> Enum.reverse()
+    |> Code.all()
+  end
+
+  # pattern style with no guard
+  # input: `%{a: 1, b: 2}`
+  def compile({:%, _, _} = pattern, env) do
     {_vars, codes} = read_header(pattern, env)
 
     codes
