@@ -3,6 +3,7 @@ defmodule Pattern.CodeTest do
 
   alias Pattern
   require Pattern
+  import Pattern.Code, only: [as_code: 2, and_: 2, or_: 2, not_: 1, access_: 1, call_: 3, op_: 2]
 
   defmodule(A, do: defstruct([:key1, :key2, :b]))
   defmodule(B, do: defstruct([:key1, :key2, :a]))
@@ -14,24 +15,10 @@ defmodule Pattern.CodeTest do
         is_nil(a)
       end)
 
-    assert {:and,
-            [
-              {:and, [{:is_map, [{:access, []}]}, {:==, [{:access, [:__struct__]}, A]}]},
-              {:is_nil, [{:access, [:key1]}]}
-            ]} == pattern.code
-
-    {:and,
-     [
-       and: [
-         ==: [
-           {:and,
-            [{:is_map, [access: []]}, {:==, [{:access, [:__struct__]}, Pattern.CodeTest.A]}]},
-           false
-         ],
-         and: [is_map: [access: []], ==: [{:access, [:__struct__]}, Pattern.CodeTest.A]]
-       ],
-       is_nil: [access: [:key1]]
-     ]}
+    assert and_(
+             and_(op_(:is_map, [access_([])]), op_(:==, [access_([:__struct__]), A])),
+             op_(:is_nil, [access_([:key1])])
+           ) == pattern.code
   end
 
   test "creates a pattern with to_string" do
@@ -40,11 +27,10 @@ defmodule Pattern.CodeTest do
         to_string(a)
       end)
 
-    assert {:and,
-            [
-              {:and, [{:is_map, [{:access, []}]}, {:==, [{:access, [:__struct__]}, A]}]},
-              {:to_string, [{:access, [:key1]}]}
-            ]} == pattern.code
+    assert and_(
+             and_(op_(:is_map, [access_([])]), op_(:==, [access_([:__struct__]), A])),
+             op_(:to_string, [access_([:key1])])
+           ) == pattern.code
   end
 
   test "creates a pattern with to_charlist" do
@@ -53,22 +39,20 @@ defmodule Pattern.CodeTest do
         to_charlist(a)
       end)
 
-    assert {:and,
-            [
-              {:and, [{:is_map, [{:access, []}]}, {:==, [{:access, [:__struct__]}, A]}]},
-              {:to_charlist, [{:access, [:key1]}]}
-            ]} == pattern.code
+    assert and_(
+             and_(op_(:is_map, [access_([])]), op_(:==, [access_([:__struct__]), A])),
+             op_(:to_charlist, [access_([:key1])])
+           ) == pattern.code
   end
 
   test "creates a pattern with arguments" do
     value1 = "value1"
     pattern = Pattern.new(fn %A{key1: a} -> a == value1 end)
 
-    assert {:and,
-            [
-              {:and, [{:is_map, [{:access, []}]}, {:==, [{:access, [:__struct__]}, A]}]},
-              {:==, [{:access, [:key1]}, "value1"]}
-            ]} == pattern.code
+    assert and_(
+             and_(op_(:is_map, [access_([])]), op_(:==, [access_([:__struct__]), A])),
+             op_(:==, [access_([:key1]), "value1"])
+           ) == pattern.code
   end
 
   test "nested struct" do
@@ -78,28 +62,22 @@ defmodule Pattern.CodeTest do
       end)
 
     expected =
-      {:and,
-       [
-         {:and,
-          [
-            {:and, [{:is_map, [{:access, []}]}, {:==, [{:access, [:__struct__]}, C]}]},
-            {:and,
-             [
-               {:and, [{:is_map, [{:access, [:b]}]}, {:==, [{:access, [:b, :__struct__]}, B]}]},
-               {:and,
-                [{:is_map, [{:access, [:b, :a]}]}, {:==, [{:access, [:b, :a, :__struct__]}, A]}]}
-             ]}
-          ]},
-         {:and,
-          [
-            {:and,
-             [
-               {:==, [{:access, [:key1]}, "a"]},
-               {:==, [{:access, [:b, :key1]}, "b"]}
-             ]},
-            {:==, [{:access, [:b, :a, :key2]}, "c"]}
-          ]}
-       ]}
+      and_(
+        and_(
+          and_(op_(:is_map, [access_([])]), op_(:==, [access_([:__struct__]), C])),
+          and_(
+            and_(op_(:is_map, [access_([:b])]), op_(:==, [access_([:b, :__struct__]), B])),
+            and_(op_(:is_map, [access_([:b, :a])]), op_(:==, [access_([:b, :a, :__struct__]), A]))
+          )
+        ),
+        and_(
+          and_(
+            op_(:==, [access_([:key1]), "a"]),
+            op_(:==, [access_([:b, :key1]), "b"])
+          ),
+          op_(:==, [access_([:b, :a, :key2]), "c"])
+        )
+      )
 
     assert expected == pattern.code
   end
@@ -115,32 +93,25 @@ defmodule Pattern.CodeTest do
         a == "a" and Pattern.match?(b_pattern, b)
       end)
 
-    assert {:and,
-            [
-              {:and, [{:is_map, [{:access, []}]}, {:==, [{:access, [:__struct__]}, C]}]},
-              {:and,
-               [
-                 {:==, [{:access, [:key1]}, "a"]},
-                 {:and,
-                  [
-                    {:and,
-                     [
-                       {:and,
-                        [{:is_map, [{:access, [:b]}]}, {:==, [{:access, [:b, :__struct__]}, B]}]},
-                       {:and,
-                        [
-                          {:is_map, [{:access, [:b, :a]}]},
-                          {:==, [{:access, [:b, :a, :__struct__]}, A]}
-                        ]}
-                     ]},
-                    {:and,
-                     [
-                       {:==, [{:access, [:b, :key1]}, "b"]},
-                       {:==, [{:access, [:b, :a, :key2]}, "c"]}
-                     ]}
-                  ]}
-               ]}
-            ]} == pattern.code
+    assert and_(
+             and_(op_(:is_map, [access_([])]), op_(:==, [access_([:__struct__]), C])),
+             and_(
+               op_(:==, [access_([:key1]), "a"]),
+               and_(
+                 and_(
+                   and_(op_(:is_map, [access_([:b])]), op_(:==, [access_([:b, :__struct__]), B])),
+                   and_(
+                     op_(:is_map, [access_([:b, :a])]),
+                     op_(:==, [access_([:b, :a, :__struct__]), A])
+                   )
+                 ),
+                 and_(
+                   op_(:==, [access_([:b, :key1]), "b"]),
+                   op_(:==, [access_([:b, :a, :key2]), "c"])
+                 )
+               )
+             )
+           ) == pattern.code
   end
 
   test "embedded Pattern.new" do
@@ -155,32 +126,25 @@ defmodule Pattern.CodeTest do
           )
       end)
 
-    assert {:and,
-            [
-              {:and, [{:is_map, [{:access, []}]}, {:==, [{:access, [:__struct__]}, C]}]},
-              {:and,
-               [
-                 {:==, [{:access, [:key1]}, "a"]},
-                 {:and,
-                  [
-                    {:and,
-                     [
-                       {:and,
-                        [{:is_map, [{:access, [:b]}]}, {:==, [{:access, [:b, :__struct__]}, B]}]},
-                       {:and,
-                        [
-                          {:is_map, [{:access, [:b, :a]}]},
-                          {:==, [{:access, [:b, :a, :__struct__]}, A]}
-                        ]}
-                     ]},
-                    {:and,
-                     [
-                       {:==, [{:access, [:b, :key1]}, "b"]},
-                       {:==, [{:access, [:b, :a, :key2]}, "c"]}
-                     ]}
-                  ]}
-               ]}
-            ]} == pattern.code
+    assert and_(
+             and_(op_(:is_map, [access_([])]), op_(:==, [access_([:__struct__]), C])),
+             and_(
+               op_(:==, [access_([:key1]), "a"]),
+               and_(
+                 and_(
+                   and_(op_(:is_map, [access_([:b])]), op_(:==, [access_([:b, :__struct__]), B])),
+                   and_(
+                     op_(:is_map, [access_([:b, :a])]),
+                     op_(:==, [access_([:b, :a, :__struct__]), A])
+                   )
+                 ),
+                 and_(
+                   op_(:==, [access_([:b, :key1]), "b"]),
+                   op_(:==, [access_([:b, :a, :key2]), "c"])
+                 )
+               )
+             )
+           ) == pattern.code
   end
 
   defmodule TestModule do
@@ -195,17 +159,16 @@ defmodule Pattern.CodeTest do
         TestModule.func(c, "d") == TestModule.func(a, b)
       end)
 
-    assert {:and,
-            [
-              {:and, [{:is_map, [{:access, []}]}, {:==, [{:access, [:__struct__]}, A]}]},
-              {
-                :==,
-                [
-                  {"c", "d"},
-                  {:call, [{TestModule, :func}, {:access, [:key1]}, {:access, [:key2]}]}
-                ]
-              }
-            ]} == pattern.code
+    assert and_(
+             and_(op_(:is_map, [access_([])]), op_(:==, [access_([:__struct__]), A])),
+             {
+               :==,
+               [
+                 {"c", "d"},
+                 call_(TestModule, :func, [access_([:key1]), access_([:key2])])
+               ]
+             }
+           ) == pattern.code
   end
 
   test "transforms local function calls" do
@@ -221,21 +184,19 @@ defmodule Pattern.CodeTest do
       end
     end
 
-    assert {:and,
-            [
-              {:and, [{:is_map, [{:access, []}]}, {:==, [{:access, [:__struct__]}, A]}]},
-              {:==,
+    assert and_(
+             and_(op_(:is_map, [access_([])]), op_(:==, [access_([:__struct__]), A])),
+             op_(
+               :==,
                [
-                 {:call,
-                  [
-                    {TestLocalFunctionModule, :local_function},
-                    {:call,
-                     [{TestLocalFunctionModule, :local_function}, {:access, [:key1]}, "a"]},
-                    {:access, [:key2]}
-                  ]},
+                 call_(TestLocalFunctionModule, :local_function, [
+                   call_(TestLocalFunctionModule, :local_function, [access_([:key1]), "a"]),
+                   access_([:key2])
+                 ]),
                  {"c", "d"}
-               ]}
-            ]} == TestLocalFunctionModule.pattern().code
+               ]
+             )
+           ) == TestLocalFunctionModule.pattern().code
   end
 
   test "transforms imported function calls" do
@@ -251,17 +212,17 @@ defmodule Pattern.CodeTest do
     assert {
              :and,
              [
-               {:and, [{:is_map, [{:access, []}]}, {:==, [{:access, [:__struct__]}, A]}]},
-               {:==,
-                [
-                  {:call,
-                   [
-                     {TestModule, :func},
-                     {:call, [{TestModule, :func}, {:access, [:key1]}, "a"]},
-                     {:access, [:key2]}
-                   ]},
-                  {"c", "d"}
-                ]}
+               and_(op_(:is_map, [access_([])]), op_(:==, [access_([:__struct__]), A])),
+               op_(
+                 :==,
+                 [
+                   call_(TestModule, :func, [
+                     call_(TestModule, :func, [access_([:key1]), "a"]),
+                     access_([:key2])
+                   ]),
+                   {"c", "d"}
+                 ]
+               )
              ]
            } == pattern.code
   end
@@ -275,42 +236,36 @@ defmodule Pattern.CodeTest do
       end)
 
     expected =
-      {:and,
-       [
-         {:and,
-          [
-            {:and, [{:is_map, [{:access, []}]}, {:==, [{:access, [:__struct__]}, C]}]},
-            {:and,
-             [
-               {:and, [{:is_map, [{:access, [:b]}]}, {:==, [{:access, [:b, :__struct__]}, B]}]},
-               {:and,
-                [{:is_map, [{:access, [:b, :a]}]}, {:==, [{:access, [:b, :a, :__struct__]}, A]}]}
-             ]}
-          ]},
-         {:call,
-          [
-            {__MODULE__, :test_fun},
-            {:access, [:key1]},
-            {:access, [:b, :key1]},
-            {:access, [:b, :a, :key2]},
-            {:access, [:b, :a]},
-            {:access, []}
-          ]}
-       ]}
+      and_(
+        and_(
+          and_(op_(:is_map, [access_([])]), op_(:==, [access_([:__struct__]), C])),
+          and_(
+            and_(op_(:is_map, [access_([:b])]), op_(:==, [access_([:b, :__struct__]), B])),
+            and_(op_(:is_map, [access_([:b, :a])]), op_(:==, [access_([:b, :a, :__struct__]), A]))
+          )
+        ),
+        call_(__MODULE__, :test_fun, [
+          access_([:key1]),
+          access_([:b, :key1]),
+          access_([:b, :a, :key2]),
+          access_([:b, :a]),
+          access_([])
+        ])
+      )
 
     assert expected == pattern.code
   end
 
   test "all/1" do
-    a = {:access, [:a]}
-    b = {:access, [:b]}
-    c = {:access, [:c]}
+    a = access_([:a])
+    b = access_([:b])
+    c = access_([:c])
     code = Pattern.Code.all([a, b, c])
-    assert {:and, [a, {:and, [b, c]}]} == code
+    assert and_(a, and_(b, c)) == code
   end
 
   test "all/1 with one" do
-    a = {:access, [:a]}
+    a = access_([:a])
     code = Pattern.Code.all([a])
     assert a == code
   end
@@ -321,15 +276,15 @@ defmodule Pattern.CodeTest do
   end
 
   test "any/1" do
-    a = {:access, [:a]}
-    b = {:access, [:b]}
-    c = {:access, [:c]}
+    a = access_([:a])
+    b = access_([:b])
+    c = access_([:c])
     code = Pattern.Code.any([a, b, c])
-    assert {:or, [a, {:or, [b, c]}]} == code
+    assert or_(a, or_(b, c)) == code
   end
 
   test "any/1 with one" do
-    a = {:access, [:a]}
+    a = access_([:a])
     code = Pattern.Code.any([a])
     assert a == code
   end
@@ -345,7 +300,7 @@ defmodule Pattern.CodeTest do
         struct.key1.key2.key3
       end)
 
-    assert {:access, [:key1, :key2, :key3]} == pattern.code
+    assert access_([:key1, :key2, :key3]) == pattern.code
   end
 
   test "access fields with [] operator" do
@@ -356,7 +311,7 @@ defmodule Pattern.CodeTest do
         struct[:key1][key2][:key3]
       end)
 
-    assert {:access, [:key1, :key2, :key3]} == pattern.code
+    assert access_([:key1, :key2, :key3]) == pattern.code
   end
 
   test "access fields with both of . and []" do
@@ -365,11 +320,13 @@ defmodule Pattern.CodeTest do
         struct.key1[:key2].key3 == struct[:key1].key2[:key3]
       end)
 
-    assert {:==,
-            [
-              {:access, [:key1, :key2, :key3]},
-              {:access, [:key1, :key2, :key3]}
-            ]} == pattern.code
+    assert op_(
+             :==,
+             [
+               access_([:key1, :key2, :key3]),
+               access_([:key1, :key2, :key3])
+             ]
+           ) == pattern.code
   end
 
   test "create pattern without :__block__" do
@@ -378,11 +335,10 @@ defmodule Pattern.CodeTest do
         not a
       end)
 
-    assert {:and,
-            [
-              {:and, [{:is_map, [{:access, []}]}, {:==, [{:access, [:__struct__]}, A]}]},
-              {:not, [{:access, [:key1]}]}
-            ]} == pattern.code
+    assert and_(
+             and_(op_(:is_map, [access_([])]), op_(:==, [access_([:__struct__]), A])),
+             not_(access_([:key1]))
+           ) == pattern.code
   end
 
   test "inline operators" do
@@ -393,31 +349,26 @@ defmodule Pattern.CodeTest do
         is_nil(value) or true
       end)
 
-    assert {:and,
-            [
-              {:and, [{:is_map, [{:access, []}]}, {:==, [{:access, [:__struct__]}, A]}]},
-              true
-            ]} == pattern.code
+    assert and_(
+             and_(op_(:is_map, [access_([])]), op_(:==, [access_([:__struct__]), A])),
+             true
+           ) == pattern.code
   end
 
   test "value in match" do
     pattern = Pattern.new(fn %A{key1: 3, key2: %B{key1: 5}} -> true end)
 
     expected =
-      {:and,
-       [
-         {:and, [{:is_map, [{:access, []}]}, {:==, [{:access, [:__struct__]}, A]}]},
-         {:and,
-          [
-            {:==, [{:access, [:key1]}, 3]},
-            {:and,
-             [
-               {:and,
-                [{:is_map, [{:access, [:key2]}]}, {:==, [{:access, [:key2, :__struct__]}, B]}]},
-               {:==, [{:access, [:key2, :key1]}, 5]}
-             ]}
-          ]}
-       ]}
+      and_(
+        and_(op_(:is_map, [access_([])]), op_(:==, [access_([:__struct__]), A])),
+        and_(
+          op_(:==, [access_([:key1]), 3]),
+          and_(
+            and_(op_(:is_map, [access_([:key2])]), op_(:==, [access_([:key2, :__struct__]), B])),
+            op_(:==, [access_([:key2, :key1]), 5])
+          )
+        )
+      )
 
     assert expected == pattern.code
   end
@@ -428,20 +379,16 @@ defmodule Pattern.CodeTest do
     pattern = Pattern.new(fn %A{key1: ^a, key2: %B{key1: ^b}} -> true end)
 
     expected =
-      {:and,
-       [
-         {:and, [{:is_map, [{:access, []}]}, {:==, [{:access, [:__struct__]}, A]}]},
-         {:and,
-          [
-            {:==, [{:access, [:key1]}, 3]},
-            {:and,
-             [
-               {:and,
-                [{:is_map, [{:access, [:key2]}]}, {:==, [{:access, [:key2, :__struct__]}, B]}]},
-               {:==, [{:access, [:key2, :key1]}, 5]}
-             ]}
-          ]}
-       ]}
+      and_(
+        and_(op_(:is_map, [access_([])]), op_(:==, [access_([:__struct__]), A])),
+        and_(
+          op_(:==, [access_([:key1]), 3]),
+          and_(
+            and_(op_(:is_map, [access_([:key2])]), op_(:==, [access_([:key2, :__struct__]), B])),
+            op_(:==, [access_([:key2, :key1]), 5])
+          )
+        )
+      )
 
     assert expected == pattern.code
   end
@@ -450,19 +397,16 @@ defmodule Pattern.CodeTest do
     pattern = Pattern.new(fn %A{key1: a, key2: a, b: %B{key1: a}} -> true end)
 
     expected =
-      {:and,
-       [
-         {:and, [{:is_map, [{:access, []}]}, {:==, [{:access, [:__struct__]}, A]}]},
-         {:and,
-          [
-            {:==, [{:access, [:key2]}, {:access, [:key1]}]},
-            {:and,
-             [
-               {:and, [{:is_map, [{:access, [:b]}]}, {:==, [{:access, [:b, :__struct__]}, B]}]},
-               {:==, [{:access, [:b, :key1]}, {:access, [:key1]}]}
-             ]}
-          ]}
-       ]}
+      and_(
+        and_(op_(:is_map, [access_([])]), op_(:==, [access_([:__struct__]), A])),
+        and_(
+          op_(:==, [access_([:key2]), access_([:key1])]),
+          and_(
+            and_(op_(:is_map, [access_([:b])]), op_(:==, [access_([:b, :__struct__]), B])),
+            op_(:==, [access_([:b, :key1]), access_([:key1])])
+          )
+        )
+      )
 
     assert expected == pattern.code
   end
@@ -481,57 +425,39 @@ defmodule Pattern.CodeTest do
       end)
 
     expected =
-      {:or,
-       [
-         {:and,
-          [
-            {:and, [{:is_map, [{:access, []}]}, {:==, [{:access, [:__struct__]}, A]}]},
-            {:==, [{:access, [:key1]}, "a"]}
-          ]},
-         {:or,
-          [
-            {:and,
-             [
-               {:and,
-                [
-                  {:!,
-                   [
-                     {:and, [{:is_map, [{:access, []}]}, {:==, [{:access, [:__struct__]}, A]}]}
-                   ]},
-                  {:and,
-                   [
-                     {:and, [{:is_map, [{:access, []}]}, {:==, [{:access, [:__struct__]}, B]}]},
-                     {:==, [{:access, [:key2]}, "b"]}
-                   ]}
-                ]},
-               {:call, [{__MODULE__, :call}, {:access, [:key1]}]}
-             ]},
-            {:and,
-             [
-               {:and,
-                [
-                  {:!,
-                   [
-                     {:and, [{:is_map, [{:access, []}]}, {:==, [{:access, [:__struct__]}, A]}]}
-                   ]},
-                  {:and,
-                   [
-                     {:!,
-                      [
-                        {:and,
-                         [
-                           {:and,
-                            [{:is_map, [{:access, []}]}, {:==, [{:access, [:__struct__]}, B]}]},
-                           {:==, [{:access, [:key2]}, "b"]}
-                         ]}
-                      ]},
-                     {:and, [{:is_map, [{:access, []}]}, {:==, [{:access, [:__struct__]}, C]}]}
-                   ]}
-                ]},
-               {:call, [{__MODULE__, :call}, {:access, [:key1]}]}
-             ]}
-          ]}
-       ]}
+      or_(
+        and_(
+          and_(op_(:is_map, [access_([])]), op_(:==, [access_([:__struct__]), A])),
+          op_(:==, [access_([:key1]), "a"])
+        ),
+        or_(
+          and_(
+            and_(
+              not_(and_(op_(:is_map, [access_([])]), op_(:==, [access_([:__struct__]), A]))),
+              and_(
+                and_(op_(:is_map, [access_([])]), op_(:==, [access_([:__struct__]), B])),
+                op_(:==, [access_([:key2]), "b"])
+              )
+            ),
+            call_(__MODULE__, :call, [access_([:key1])])
+          ),
+          and_(
+            and_(
+              not_(and_(op_(:is_map, [access_([])]), op_(:==, [access_([:__struct__]), A]))),
+              and_(
+                not_(
+                  and_(
+                    and_(op_(:is_map, [access_([])]), op_(:==, [access_([:__struct__]), B])),
+                    op_(:==, [access_([:key2]), "b"])
+                  )
+                ),
+                and_(op_(:is_map, [access_([])]), op_(:==, [access_([:__struct__]), C]))
+              )
+            ),
+            call_(__MODULE__, :call, [access_([:key1])])
+          )
+        )
+      )
 
     assert expected == pattern.code
   end
@@ -544,46 +470,36 @@ defmodule Pattern.CodeTest do
       end)
 
     expected =
-      {:or,
-       [
-         {:and,
-          [
-            {:and,
-             [
-               {:and, [{:is_map, [{:access, []}]}, {:==, [{:access, [:__struct__]}, A]}]},
-               {:and,
-                [
-                  {:is_nil, [{:access, [:key1]}]},
-                  {:not, [{:is_nil, [{:access, [:key2]}]}]}
-                ]}
-             ]},
-            "a"
-          ]},
-         {:and,
-          [
-            {:and,
-             [
-               {:!,
-                [
-                  {:and,
-                   [
-                     {:and, [{:is_map, [{:access, []}]}, {:==, [{:access, [:__struct__]}, A]}]},
-                     {:and,
-                      [
-                        {:is_nil, [{:access, [:key1]}]},
-                        {:not, [{:is_nil, [{:access, [:key2]}]}]}
-                      ]}
-                   ]}
-                ]},
-               {:and,
-                [
-                  {:and, [{:is_map, [{:access, []}]}, {:==, [{:access, [:__struct__]}, A]}]},
-                  {:in, [{:access, [:key1]}, [:a, :b, :c]]}
-                ]}
-             ]},
-            "b"
-          ]}
-       ]}
+      or_(
+        and_(
+          and_(
+            and_(op_(:is_map, [access_([])]), op_(:==, [access_([:__struct__]), A])),
+            and_(
+              op_(:is_nil, [access_([:key1])]),
+              not_(op_(:is_nil, [access_([:key2])]))
+            )
+          ),
+          "a"
+        ),
+        and_(
+          and_(
+            not_(
+              and_(
+                and_(op_(:is_map, [access_([])]), op_(:==, [access_([:__struct__]), A])),
+                and_(
+                  op_(:is_nil, [access_([:key1])]),
+                  not_(op_(:is_nil, [access_([:key2])]))
+                )
+              )
+            ),
+            and_(
+              and_(op_(:is_map, [access_([])]), op_(:==, [access_([:__struct__]), A])),
+              op_(:in, [access_([:key1]), [:a, :b, :c]])
+            )
+          ),
+          "b"
+        )
+      )
 
     assert expected == pattern.code
   end
@@ -596,8 +512,6 @@ defmodule Pattern.CodeTest do
   end
 
   describe "as_code(args, do: block)" do
-    import Pattern.Code, only: [as_code: 2]
-
     test "translates the block into a code" do
       binded = 3
 
@@ -606,7 +520,7 @@ defmodule Pattern.CodeTest do
           value.key3 == binded
         end
 
-      expected = {:==, [{:access, [:key1, :key2, :key3]}, 3]}
+      expected = op_(:==, [access_([:key1, :key2, :key3]), 3])
 
       assert code == expected
     end

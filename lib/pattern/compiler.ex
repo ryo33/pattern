@@ -16,7 +16,7 @@ defmodule Pattern.Compiler do
           guards_of_above_fncases
           |> Enum.reverse()
           # Makes guards of above fncases nagative
-          |> Enum.map(fn guard -> Code.code_neg(guard) end)
+          |> Enum.map(fn guard -> Code.not_(guard) end)
           # guard for this case
           |> List.insert_at(-1, guard)
           |> Code.all()
@@ -145,5 +145,5 @@ defmodule Pattern.Compiler do
 
   defp gen_and(true, arg2), do: arg2
   defp gen_and(arg1, true), do: arg1
-  defp gen_and(arg1, arg2), do: Code.code_and(arg1, arg2)
+  defp gen_and(arg1, arg2), do: Code.and_(arg1, arg2)
 end

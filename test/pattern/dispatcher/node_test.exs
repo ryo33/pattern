@@ -2,6 +2,7 @@ defmodule Pattern.Dispatcher.NodeTest do
   use ExUnit.Case, async: true
 
   alias Pattern.Dispatcher.Node
+  import Pattern.Code, only: [and_: 2, or_: 2, not_: 1, access_: 1, op_: 2]
 
   setup do
     %{
@@ -31,7 +32,7 @@ defmodule Pattern.Dispatcher.NodeTest do
   test "put operation", %{node: node} do
     actual =
       node
-      |> Node.put({:<>, ["a", "b"]}, "1")
+      |> Node.put(op_(:<>, ["a", "b"]), "1")
 
     expected = %Node{
       node
@@ -39,7 +40,7 @@ defmodule Pattern.Dispatcher.NodeTest do
           Map.merge(
             node.operations,
             %{
-              {:<>, ["a", "b"]} => %{
+              op_(:<>, ["a", "b"]) => %{
                 true: %Node{
                   subscriptions: MapSet.new(["1"])
                 }
@@ -54,10 +55,10 @@ defmodule Pattern.Dispatcher.NodeTest do
   test "put :==", %{node: node} do
     actual =
       node
-      |> Node.put({:==, [{:access, [:key1, :key2]}, "a"]}, "1")
-      |> Node.put({:==, ["b", {:access, [:key1, :key2]}]}, "2")
-      |> Node.put({:==, ["a", {:access, [:key1, :key3]}]}, "3")
-      |> Node.put({:==, [{:access, [:key1, :key3]}, "a"]}, "4")
+      |> Node.put(op_(:==, [access_([:key1, :key2]), "a"]), "1")
+      |> Node.put(op_(:==, ["b", access_([:key1, :key2])]), "2")
+      |> Node.put(op_(:==, ["a", access_([:key1, :key3])]), "3")
+      |> Node.put(op_(:==, [access_([:key1, :key3]), "a"]), "4")
 
     expected = %Node{
       node
@@ -88,9 +89,9 @@ defmodule Pattern.Dispatcher.NodeTest do
   test "put not operator", %{node: node} do
     actual =
       node
-      |> Node.put({:access, [:key1]}, "1")
-      |> Node.put({:not, [{:access, [:key1]}]}, "2")
-      |> Node.put({:not, [{:access, [:key2]}]}, "3")
+      |> Node.put(access_([:key1]), "1")
+      |> Node.put(not_(access_([:key1])), "2")
+      |> Node.put(not_(access_([:key2])), "3")
 
     expected = %Node{
       node
@@ -120,26 +121,22 @@ defmodule Pattern.Dispatcher.NodeTest do
 
   test "put and operator", %{node: node} do
     code1 =
-      {:and,
-       [
-         "a",
-         {:and,
-          [
-            {:and, ["b", "c"]},
-            "d"
-          ]}
-       ]}
+      and_(
+        "a",
+        and_(
+          and_("b", "c"),
+          "d"
+        )
+      )
 
     code2 =
-      {:and,
-       [
-         "a",
-         {:and,
-          [
-            {:and, ["b", "c"]},
-            "d"
-          ]}
-       ]}
+      and_(
+        "a",
+        and_(
+          and_("b", "c"),
+          "d"
+        )
+      )
 
     actual1 =
       node
@@ -188,15 +185,13 @@ defmodule Pattern.Dispatcher.NodeTest do
 
   test "put or operator", %{node: node} do
     code =
-      {:or,
-       [
-         "a",
-         {:or,
-          [
-            {:or, ["b", "c"]},
-            "d"
-          ]}
-       ]}
+      or_(
+        "a",
+        or_(
+          or_("b", "c"),
+          "d"
+        )
+      )
 
     actual =
       node

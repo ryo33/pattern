@@ -22,13 +22,13 @@ defmodule Pattern.Code do
   @spec all([t]) :: t
   def all([]), do: true
   def all([code]), do: code
-  def all([code | tail]), do: code_and(code, all(tail))
+  def all([code | tail]), do: and_(code, all(tail))
 
   @doc false
   @spec any([t]) :: t
   def any([]), do: false
   def any([code]), do: code
-  def any([code | tail]), do: code_or(code, any(tail))
+  def any([code | tail]), do: or_(code, any(tail))
 
   @doc false
   @spec expand_embedded_patterns(ast, Macro.Env.t()) :: t
@@ -51,12 +51,12 @@ defmodule Pattern.Code do
   @doc false
   # Puts prefix recursively to expand embedded patterns.
   def with_prefix({:access, keys}, prefix) do
-    code_access(prefix ++ keys)
+    access_(prefix ++ keys)
   end
 
   def with_prefix({op, args}, prefix) when is_atom(op) and is_list(args) do
     args = Enum.map(args, &with_prefix(&1, prefix))
-    code_op(op, args)
+    op_(op, args)
   end
 
   def with_prefix(node, _prefix), do: node
@@ -66,8 +66,8 @@ defmodule Pattern.Code do
   @spec walk(ast, vars, Macro.Env.t()) :: ast
   # input: `is_nil(x)`
   defp walk({op, _, args} = node, _vars, _env) when op in @additional_operators do
-    if Enum.any?(args, &access_code_exists?(&1)) do
-      code_op(op, args)
+    if Enum.any?(args, &access_exists_?(&1)) do
+      op_(op, args)
     else
       node
     end
@@ -78,12 +78,12 @@ defmodule Pattern.Code do
 
   # input: `value.key`
   defp walk({{:., _, [{:access, keys}, key]}, _, []}, _vars, _env) do
-    code_access(append_key(keys, key))
+    access_(append_key(keys, key))
   end
 
   # input: `value[key]`
   defp walk({{:., _, [Access, :get]}, _, [{:access, keys}, key]}, _vars, _env) do
-    code_access(append_key(keys, key))
+    access_(append_key(keys, key))
   end
 
   # input: `MyModule.func(arg1, arg2)`
@@ -105,8 +105,8 @@ defmodule Pattern.Code do
             end
         end
 
-      Enum.any?(args, &access_code_exists?(&1)) ->
-        code_call(module, function, args)
+      Enum.any?(args, &access_exists_?(&1)) ->
+        call_(module, function, args)
 
       true ->
         node
@@ -118,7 +118,7 @@ defmodule Pattern.Code do
     if Map.has_key?(vars, first) do
       keys = Map.get(vars, first)
 
-      code_access(keys)
+      access_(keys)
     else
       node
     end
@@ -128,8 +128,8 @@ defmodule Pattern.Code do
   defp walk({fun, _, args} = node, vars, env) when is_atom(fun) do
     if Macro.operator?(fun, length(args)) do
       # input: `left and right`
-      if Enum.any?(args, &access_code_exists?(&1)) do
-        code_op(fun, args)
+      if Enum.any?(args, &access_exists_?(&1)) do
+        op_(fun, args)
       else
         node
       end
@@ -142,24 +142,24 @@ defmodule Pattern.Code do
   defp walk(node, _vars, _env), do: node
 
   # Finds :access code in the given ast.
-  defp access_code_exists?(ast) do
-    {_node, access_code_exists?} =
-      Macro.prewalk(ast, false, fn node, access_code_exists? ->
+  defp access_exists_?(ast) do
+    {_node, access_exists_?} =
+      Macro.prewalk(ast, false, fn node, access_exists_? ->
         case node do
           {:access, _} ->
             {node, true}
 
           node ->
-            {node, access_code_exists?}
+            {node, access_exists_?}
         end
       end)
 
-    access_code_exists?
+    access_exists_?
   end
 
   # Generates :call code if the args has any :access codes
   defp gen_call({fun, _, args} = node, _vars, env) do
-    if Enum.any?(args, &access_code_exists?(&1)) do
+    if Enum.any?(args, &access_exists_?(&1)) do
       arity = length(args)
 
       # find a function whitch matches the given name and arity.
@@ -175,7 +175,7 @@ defmodule Pattern.Code do
           end)
         end)
 
-      code_call(module, fun, args)
+      call_(module, fun, args)
     else
       node
     end
@@ -192,16 +192,16 @@ defmodule Pattern.Code do
     end
   end
 
-  @spec code_and(t, t) :: t
-  def code_and(left, right), do: {:and, [left, right]}
-  @spec code_or(t, t) :: t
-  def code_or(left, right), do: {:or, [left, right]}
-  @spec code_access(keys) :: t
-  def code_access(keys), do: {:access, keys}
-  @spec code_op(t, [t]) :: t
-  def code_op(op, args), do: {op, args}
-  @spec code_call(module, atom, [term]) :: t
-  def code_call(module, function, args), do: {:call, [{module, function} | args]}
-  @spec code_neg(t) :: t
-  def code_neg(code), do: {:!, [code]}
+  @spec and_(t, t) :: t
+  def and_(left, right), do: {:and, [left, right]}
+  @spec or_(t, t) :: t
+  def or_(left, right), do: {:or, [left, right]}
+  @spec access_(keys) :: t
+  def access_(keys), do: {:access, keys}
+  @spec op_(t, [t]) :: t
+  def op_(op, args), do: {op, args}
+  @spec call_(module, atom, [term]) :: t
+  def call_(module, function, args), do: {:call, [{module, function} | args]}
+  @spec not_(t) :: t
+  def not_(code), do: {:not, [code]}
 end

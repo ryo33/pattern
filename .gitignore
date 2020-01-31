@@ -24,3 +24,6 @@ pattern-*.tar
 
 # Ignore IDE artifacts
 .elixir_ls
+
+# asdf
+.tool-versions
