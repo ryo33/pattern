@@ -126,18 +126,16 @@ defmodule Pattern.Code do
 
   # input: `left and right` or `function_in_lexical_scope(arg1, arg2, ...)`
   defp walk({fun, _, args} = node, vars, env) when is_atom(fun) do
-    cond do
+    if Macro.operator?(fun, length(args)) do
       # input: `left and right`
-      Macro.operator?(fun, length(args)) ->
-        if Enum.any?(args, &access_code_exists?(&1)) do
-          code_op(fun, args)
-        else
-          node
-        end
-
+      if Enum.any?(args, &access_code_exists?(&1)) do
+        code_op(fun, args)
+      else
+        node
+      end
+    else
       # input: `function_in_lexical_scope(arg1, arg2, ...)`
-      args ->
-        gen_call(node, vars, env)
+      gen_call(node, vars, env)
     end
   end
 
