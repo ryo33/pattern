@@ -1,6 +1,4 @@
-# Pattern
-
-**TODO: Add description**
+# Pattern [![pipeline status](https://gitlab.com/cizen/pattern/badges/master/pipeline.svg)](https://gitlab.com/cizen/pattern/commits/master) [![coverage report](https://gitlab.com/cizen/pattern/badges/master/coverage.svg)](https://gitlab.com/cizen/pattern/commits/master)
 
 ## Installation
 

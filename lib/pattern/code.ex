@@ -14,7 +14,7 @@ defmodule Pattern.Code do
     Macro.postwalk(expression, &walk(&1, vars, env))
   end
 
-  defmacro as_code(vars \\ [], do: block) do
+  defmacro as_code(vars, do: block) do
     translate(block, Enum.into(vars, %{}), __CALLER__)
   end
 
@@ -113,7 +113,7 @@ defmodule Pattern.Code do
     end
   end
 
-  # input `var`
+  # input: `var`
   defp walk({first, _, third} = node, vars, _env) when is_atom(first) and not is_list(third) do
     if Map.has_key?(vars, first) do
       keys = Map.get(vars, first)
@@ -124,9 +124,10 @@ defmodule Pattern.Code do
     end
   end
 
+  # input: `left and right` or `function_in_lexical_scope(arg1, arg2, ...)`
   defp walk({fun, _, args} = node, vars, env) when is_atom(fun) do
     cond do
-      # input `value == 42`
+      # input: `left and right`
       Macro.operator?(fun, length(args)) ->
         if Enum.any?(args, &access_code_exists?(&1)) do
           code_op(fun, args)
@@ -134,18 +135,15 @@ defmodule Pattern.Code do
           node
         end
 
-      # input `imported_func(arg1, arg2)`
-      args != [] ->
+      # input: `function_in_lexical_scope(arg1, arg2, ...)`
+      args ->
         gen_call(node, vars, env)
-
-      true ->
-        node
     end
   end
 
   defp walk(node, _vars, _env), do: node
 
-  # Finds {:access, keys} in the given ast.
+  # Finds :access code in the given ast.
   defp access_code_exists?(ast) do
     {_node, access_code_exists?} =
       Macro.prewalk(ast, false, fn node, access_code_exists? ->
@@ -161,6 +159,7 @@ defmodule Pattern.Code do
     access_code_exists?
   end
 
+  # Generates :call code if the args has any :access codes
   defp gen_call({fun, _, args} = node, _vars, env) do
     if Enum.any?(args, &access_code_exists?(&1)) do
       arity = length(args)

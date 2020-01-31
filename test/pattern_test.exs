@@ -8,16 +8,43 @@ defmodule PatternTest do
   defmodule(B, do: defstruct([:key1, :key2, :a]))
   defmodule(C, do: defstruct([:key1, :key2, :b]))
 
-  test "throw exception on a wrong struct destructure" do
-    assert_raise CompileError, fn ->
-      quoted =
-        quote do
-          Pattern.new(fn %A{key1: a, key2: b, key3: c} ->
-            a + b + c == 3
-          end)
-        end
+  describe "throw exception on a wrong struct destructure" do
+    test "single case" do
+      assert_raise CompileError, fn ->
+        quoted =
+          quote do
+            Pattern.new(fn %A{key1: a, key2: b, key3: c} ->
+              a + b + c == 3
+            end)
+          end
 
-      Code.eval_quoted(quoted, [], __ENV__)
+        Code.eval_quoted(quoted, [], __ENV__)
+      end
+    end
+
+    test "multiple cases" do
+      assert_raise CompileError, fn ->
+        quoted =
+          quote do
+            Pattern.new(fn
+              %A{key1: a} -> a == 1
+              %A{key1: a, key2: b, key3: c} -> a + b + c == 3
+            end)
+          end
+
+        Code.eval_quoted(quoted, [], __ENV__)
+      end
+    end
+
+    test "pattern style" do
+      assert_raise CompileError, fn ->
+        quoted =
+          quote do
+            Pattern.new(%A{key1: :a, key2: :b, key3: :c})
+          end
+
+        Code.eval_quoted(quoted, [], __ENV__)
+      end
     end
   end
 
@@ -278,6 +305,20 @@ defmodule PatternTest do
 
     assert Pattern.eval(pattern.code, %A{key1: :a, key2: nil})
     refute Pattern.eval(pattern.code, %A{key1: :a, key2: :a})
+    assert Pattern.eval(pattern.code, %A{key1: :a})
+    refute Pattern.eval(pattern.code, %A{key1: :d})
+  end
+
+  test "pattern style with guard" do
+    pattern = Pattern.new(%A{key1: a} when a in [:a, :b, :c])
+
+    assert Pattern.eval(pattern.code, %A{key1: :a})
+    refute Pattern.eval(pattern.code, %A{key1: :d})
+  end
+
+  test "pattern style" do
+    pattern = Pattern.new(%A{key1: a} when a in [:a, :b, :c])
+
     assert Pattern.eval(pattern.code, %A{key1: :a})
     refute Pattern.eval(pattern.code, %A{key1: :d})
   end

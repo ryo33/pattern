@@ -71,7 +71,7 @@ defmodule Pattern.CodeTest do
             ]} == pattern.code
   end
 
-  test "nested pattern" do
+  test "nested struct" do
     pattern =
       Pattern.new(fn %C{key1: a, b: %B{key1: b, a: %A{key2: c}}} ->
         a == "a" and b == "b" and c == "c"
@@ -586,5 +586,29 @@ defmodule Pattern.CodeTest do
        ]}
 
     assert expected == pattern.code
+  end
+
+  test "support pattern style" do
+    actual = Pattern.new(%A{key1: 3, key2: %B{key1: a}} when is_integer(a))
+    filter = Pattern.new(fn %A{key1: 3, key2: %B{key1: a}} when is_integer(a) -> true end)
+
+    assert actual == filter
+  end
+
+  describe "as_code(args, do: block)" do
+    import Pattern.Code, only: [as_code: 2]
+
+    test "translates the block into a code" do
+      binded = 3
+
+      code =
+        as_code value: [:key1, :key2] do
+          value.key3 == binded
+        end
+
+      expected = {:==, [{:access, [:key1, :key2, :key3]}, 3]}
+
+      assert code == expected
+    end
   end
 end

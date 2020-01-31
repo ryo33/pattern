@@ -3,6 +3,8 @@ defmodule Pattern.Compiler do
   alias Pattern.Code
   import Code, only: [as_code: 2]
 
+  # filter style
+  # input: `fn %{a: a} -> a == :ok end`
   def compile({:fn, _, fncases}, env) do
     # Merges cases
     {codes, _guards} =
@@ -13,7 +15,7 @@ defmodule Pattern.Compiler do
         code =
           guards_of_above_fncases
           |> Enum.reverse()
-          # make guards of above fncases nagative
+          # Makes guards of above fncases nagative
           |> Enum.map(fn guard -> Code.code_neg(guard) end)
           # guard for this case
           |> List.insert_at(-1, guard)
@@ -28,10 +30,20 @@ defmodule Pattern.Compiler do
     |> Code.any()
   end
 
-  # Read fncase
+  # pattern style with guard
+  # input: `%{a: 1, b: 2} when 1`
+  def compile({:when, _, _} = pattern, env) do
+    {_vars, codes} = read_header(pattern, env)
+
+    codes
+    |> Enum.reverse()
+    |> Code.all()
+  end
+
+  # Reads fncase
   @spec read_fncase(Code.ast(), Macro.Env.t()) :: {Code.t(), [Code.t()]}
   defp read_fncase({:->, _, [[header], {:__block__, _, [expression]}]}, env) do
-    # ignores :__block__
+    # Ignores :__block__
     read_fncase({:->, [], [[header], expression]}, env)
   end
 

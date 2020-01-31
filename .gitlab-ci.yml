@@ -7,7 +7,7 @@ before_script:
 
 mix:
   script:
-  - mix test
+  - mix test --cover
   - mix check
 
 cache:
