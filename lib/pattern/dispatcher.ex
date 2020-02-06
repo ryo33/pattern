@@ -13,13 +13,13 @@ defmodule Pattern.Dispatcher do
     GenServer.start_link(__MODULE__, opts)
   end
 
-  @spec put(GenServer.server(), Pattern.t(), any) :: :ok
-  def put(name, pattern, ref) do
+  @spec register(GenServer.server(), Pattern.t(), any) :: :ok
+  def register(name, pattern, ref) do
     GenServer.cast(name, {:put, pattern, ref})
   end
 
-  @spec delete(GenServer.server(), Pattern.t(), any) :: :ok
-  def delete(name, pattern, ref) do
+  @spec unregister(GenServer.server(), Pattern.t(), any) :: :ok
+  def unregister(name, pattern, ref) do
     GenServer.cast(name, {:delete, pattern, ref})
   end
 

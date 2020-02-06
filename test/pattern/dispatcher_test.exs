@@ -21,17 +21,17 @@ defmodule Pattern.DispatcherTest do
   end
 
   test "returns matched dispatch", %{pid: pid} do
-    Dispatcher.put(pid, Pattern.new(fn %Event{body: %TestEventA{}} -> true end), 1)
-    Dispatcher.put(pid, Pattern.new(fn %Event{body: %TestEventB{}} -> true end), 2)
+    Dispatcher.register(pid, Pattern.new(fn %Event{body: %TestEventA{}} -> true end), 1)
+    Dispatcher.register(pid, Pattern.new(fn %Event{body: %TestEventB{}} -> true end), 2)
     assert [1] == Dispatcher.dispatch(pid, %Event{body: %TestEventA{}})
     assert [2] == Dispatcher.dispatch(pid, %Event{body: %TestEventB{}})
     assert [] == Dispatcher.dispatch(pid, %Event{body: %TestEventC{}})
   end
 
   test "returns multiple matched dispatch", %{pid: pid} do
-    Dispatcher.put(pid, Pattern.new(fn %Event{body: %TestEventA{}} -> true end), 1)
-    Dispatcher.put(pid, Pattern.new(fn %Event{body: %TestEventA{}} -> true end), 2)
-    Dispatcher.put(pid, Pattern.new(fn %Event{body: %TestEventB{}} -> true end), 3)
+    Dispatcher.register(pid, Pattern.new(fn %Event{body: %TestEventA{}} -> true end), 1)
+    Dispatcher.register(pid, Pattern.new(fn %Event{body: %TestEventA{}} -> true end), 2)
+    Dispatcher.register(pid, Pattern.new(fn %Event{body: %TestEventB{}} -> true end), 3)
     dispatch = Dispatcher.dispatch(pid, %Event{body: %TestEventA{}})
     assert MapSet.new([1, 2]) == MapSet.new(dispatch)
   end
@@ -40,11 +40,11 @@ defmodule Pattern.DispatcherTest do
     pattern_1 = Pattern.new(fn %Event{body: %TestEventA{}} -> true end)
     pattern_2 = Pattern.new(fn %Event{body: %TestEventA{}} -> true end)
     pattern_3 = Pattern.new(fn %Event{body: %TestEventB{}} -> true end)
-    Dispatcher.put(pid, pattern_1, 1)
-    Dispatcher.put(pid, pattern_2, 2)
-    Dispatcher.put(pid, pattern_3, 3)
-    Dispatcher.delete(pid, pattern_2, 2)
-    Dispatcher.delete(pid, pattern_3, 3)
+    Dispatcher.register(pid, pattern_1, 1)
+    Dispatcher.register(pid, pattern_2, 2)
+    Dispatcher.register(pid, pattern_3, 3)
+    Dispatcher.unregister(pid, pattern_2, 2)
+    Dispatcher.unregister(pid, pattern_3, 3)
     assert [1] == Dispatcher.dispatch(pid, %Event{body: %TestEventA{}})
     assert [] == Dispatcher.dispatch(pid, %Event{body: %TestEventB{}})
   end
