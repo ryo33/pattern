@@ -5,7 +5,8 @@ defmodule Pattern.Compiler do
 
   # filter style
   # input: `fn %{a: a} -> a == :ok end`
-  def compile({:fn, _, fncases}, env) do
+  def compile(pattern_or_filter, env) do
+    {:fn, _, fncases} = to_filter(pattern_or_filter)
     # Merges cases
     {codes, _guards} =
       fncases
@@ -30,25 +31,12 @@ defmodule Pattern.Compiler do
     |> Code.any()
   end
 
-  # pattern style with guard
-  # input: `%{a: value, b: 2} when is_nil(value)`
-  def compile({:when, _, _} = pattern, env) do
-    {_vars, codes} = read_header(pattern, env)
-
-    codes
-    |> Enum.reverse()
-    |> Code.all()
-  end
-
-  # pattern style with no guard
-  # input: `%{a: 1, b: 2}`
-  def compile({:%, _, _} = pattern, env) do
-    {_vars, codes} = read_header(pattern, env)
-
-    codes
-    |> Enum.reverse()
-    |> Code.all()
-  end
+  # input `fn case1; case2 end`
+  def to_filter({:fn, _, _fncases} = filter), do: filter
+  # input `%{a: list} when is_list(list)`
+  def to_filter({:when, _, _} = pattern), do: quote(do: fn unquote(pattern) -> true end)
+  # input `%{a: 3}`
+  def to_filter({:%, _, _} = pattern), do: quote(do: fn unquote(pattern) -> true end)
 
   # Reads fncase
   @spec read_fncase(Code.ast(), Macro.Env.t()) :: {Code.t(), [Code.t()]}

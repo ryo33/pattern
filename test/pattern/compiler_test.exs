@@ -4,6 +4,7 @@ defmodule Pattern.CompilerTest do
   alias Pattern
   require Pattern
   import Pattern.Code, only: [and_: 2, or_: 2, not_: 1, access_: 1, call_: 3, op_: 2]
+  alias Pattern.Compiler
 
   defmodule(A, do: defstruct([:key1, :key2]))
   defmodule(B, do: defstruct([:key1, :key2]))
@@ -127,4 +128,23 @@ defmodule Pattern.CompilerTest do
 
     assert actual == filter
   end
+
+  describe "to_filter(pattern)" do
+    test "does not transform filter" do
+      filter = quote do: fn %A{key1: 3} -> true end
+      assert Compiler.to_filter(filter) == filter
+    end
+
+    test "with no guard" do
+      expected = quote do: fn %A{key1: 3} -> true end
+      assert Compiler.to_filter(quote do: %A{key1: 3}) == expected
+    end
+
+    test "with guard" do
+      expected = quote do: fn %A{key1: a} when is_list(a) -> true end
+      assert Compiler.to_filter(quote do: %A{key1: a} when is_list(a)) == expected
+    end
+  end
+
+  defp call(_), do: true
 end

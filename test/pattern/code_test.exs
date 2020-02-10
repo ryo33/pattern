@@ -333,7 +333,7 @@ defmodule Pattern.CodeTest do
     value = "a"
 
     pattern =
-      Pattern.new(fn %A{key1: a} ->
+      Pattern.new(fn %A{key1: _} ->
         is_nil(value) or true
       end)
 

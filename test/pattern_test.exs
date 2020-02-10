@@ -10,39 +10,39 @@ defmodule PatternTest do
 
   describe "throw exception on a wrong struct destructure" do
     test "single case" do
-      assert_raise CompileError, fn ->
-        quoted =
-          quote do
-            Pattern.new(fn %A{key1: a, key2: b, key3: c} ->
-              a + b + c == 3
-            end)
-          end
+      quoted =
+        quote do
+          Pattern.new(fn %A{key1: a, key2: b, key3: c} ->
+            a + b + c == 3
+          end)
+        end
 
+      assert_raise CompileError, fn ->
         Code.eval_quoted(quoted, [], __ENV__)
       end
     end
 
     test "multiple cases" do
-      assert_raise CompileError, fn ->
-        quoted =
-          quote do
-            Pattern.new(fn
-              %A{key1: a} -> a == 1
-              %A{key1: a, key2: b, key3: c} -> a + b + c == 3
-            end)
-          end
+      quoted =
+        quote do
+          Pattern.new(fn
+            %A{key1: a} -> a == 1
+            %A{key1: a, key2: b, key3: c} -> a + b + c == 3
+          end)
+        end
 
+      assert_raise CompileError, fn ->
         Code.eval_quoted(quoted, [], __ENV__)
       end
     end
 
     test "pattern style" do
-      assert_raise CompileError, fn ->
-        quoted =
-          quote do
-            Pattern.new(%A{key1: :a, key2: :b, key3: :c})
-          end
+      quoted =
+        quote do
+          Pattern.new(%A{key1: :a, key2: :b, key3: :c})
+        end
 
+      assert_raise CompileError, fn ->
         Code.eval_quoted(quoted, [], __ENV__)
       end
     end
@@ -317,9 +317,88 @@ defmodule PatternTest do
   end
 
   test "pattern style" do
-    pattern = Pattern.new(%A{key1: a})
+    pattern = Pattern.new(%A{key1: :a})
 
     assert Pattern.eval(pattern.code, %A{key1: :a})
     refute Pattern.eval(pattern.code, %B{key1: :a})
   end
+
+  describe "includes raw filter function" do
+    test "for filter style" do
+      heystack =
+        quote do
+          Pattern.new(fn %A{key1: a, key2: b} -> a == 1 end)
+        end
+        |> Macro.expand_once(__ENV__)
+        |> remove_meta()
+
+      needle =
+        quote do
+          fn %A{key1: a, key2: b} -> a == 1 end
+        end
+        |> remove_meta()
+
+      assert catch_throw(
+               Macro.prewalk(heystack, fn node ->
+                 if node == needle do
+                   throw(:found)
+                 end
+
+                 node
+               end)
+             )
+    end
+
+    test "for pattern style" do
+      heystack =
+        quote do
+          Pattern.new(%A{key1: a, key2: b})
+        end
+        |> Macro.expand_once(__ENV__)
+        |> remove_meta()
+
+      needle =
+        quote do
+          fn %A{key1: a, key2: b} -> true end
+        end
+        |> remove_meta()
+
+      assert catch_throw(
+               Macro.prewalk(heystack, fn node ->
+                 if node == needle do
+                   throw(:found)
+                 end
+
+                 node
+               end)
+             )
+    end
+
+    test "for pattern style with guards" do
+      heystack =
+        quote do
+          Pattern.new(%A{key1: a, key2: b} when is_list(a))
+        end
+        |> Macro.expand_once(__ENV__)
+        |> remove_meta()
+
+      needle =
+        quote do
+          fn %A{key1: a, key2: b} when is_list(a) -> true end
+        end
+        |> remove_meta()
+
+      assert catch_throw(
+               Macro.prewalk(heystack, fn node ->
+                 if node == needle do
+                   throw(:found)
+                 end
+
+                 node
+               end)
+             )
+    end
+  end
+
+  defp remove_meta(ast), do: Macro.prewalk(ast, &Macro.update_meta(&1, fn _ -> [] end))
 end

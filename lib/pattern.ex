@@ -68,40 +68,16 @@ defmodule Pattern do
   Creates a pattern with the given anonymous function.
   """
   defmacro new(pattern) do
-    # Evals the given pattern as a struct.
-    struct =
+    function =
       pattern
-      |> Macro.prewalk(fn
-        # Transforms `fn args1 -> expression1; args2 -> expression2; ... end`
-        # into [args1, args2, ...]
-        {:fn, _, cases} ->
-          quote do: [unquote_splicing(cases)]
-
-        {:->, _, [args, _expression]} ->
-          args
-
-        # Removes a guard clause
-        {:when, _, [args, _guard]} ->
-          args
-
-        # Ignores a match with pin operator
-        {:^, _, [{_var, _, _}]} ->
-          {:_, [], nil}
-
-        # Ignores a binding
-        {_var, _, args} when not is_list(args) ->
-          {:_, [], nil}
-
-        node ->
-          node
-      end)
-
-    quote(do: match?(unquote(struct), nil))
-    |> Elixir.Code.eval_quoted([], __CALLER__)
+      |> Compiler.to_filter()
 
     code = Compiler.compile(pattern, __CALLER__)
 
     quote do
+      # Delegates code checking to the compiler.
+      _ = unquote(function)
+
       %unquote(__MODULE__){
         code: unquote(code)
       }
