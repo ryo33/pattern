@@ -33,10 +33,12 @@ defmodule Pattern.Compiler do
 
   # input `fn case1; case2 end`
   def to_filter({:fn, _, _fncases} = filter), do: filter
-  # input `%{a: list} when is_list(list)`
+  # input `%A{a: list} when is_list(list)`
   def to_filter({:when, _, _} = pattern), do: quote(do: fn unquote(pattern) -> true end)
-  # input `%{a: 3}`
+  # input `%A{a: 3}`
   def to_filter({:%, _, _} = pattern), do: quote(do: fn unquote(pattern) -> true end)
+  # input `%{a: 3}`
+  def to_filter({:%{}, _, _} = pattern), do: quote(do: fn unquote(pattern) -> true end)
 
   # Reads fncase
   @spec read_fncase(Code.ast(), Macro.Env.t()) :: {Code.t(), [Code.t()]}
@@ -87,11 +89,17 @@ defmodule Pattern.Compiler do
         is_map(context_value) and context_value.__struct__ == module
       end
 
-    # handle `[key1: var, key2: 42]`
-    pairs
-    |> Enum.reduce({vars, [code | codes]}, fn {key, value}, {vars, codes} ->
-      read_header(value, vars, codes, List.insert_at(prefix, -1, key), env)
-    end)
+    handle_key_value_pairs(pairs, vars, [code | codes], prefix, env)
+  end
+
+  # input: `%{key1: var, key2: 42}`
+  defp read_header({:%{}, _, pairs}, vars, codes, prefix, env) do
+    code =
+      as_code context_value: prefix do
+        is_map(context_value)
+      end
+
+    handle_key_value_pairs(pairs, vars, [code | codes], prefix, env)
   end
 
   # input: `%MyStruct{a: 1} = var`
@@ -139,6 +147,14 @@ defmodule Pattern.Compiler do
       end
 
     {vars, [code | codes]}
+  end
+
+  # Handles `[key1: var, key2: 42]` for a map or struct
+  defp handle_key_value_pairs(pairs, vars, codes, prefix, env) do
+    pairs
+    |> Enum.reduce({vars, codes}, fn {key, value}, {vars, codes} ->
+      read_header(value, vars, codes, List.insert_at(prefix, -1, key), env)
+    end)
   end
 
   defp gen_and(true, arg2), do: arg2

@@ -129,6 +129,26 @@ defmodule Pattern.CompilerTest do
     assert actual == filter
   end
 
+  describe "support map" do
+    test "in filter style" do
+      pattern = Pattern.new(fn %{key1: :a} -> true end)
+
+      assert pattern.code == and_(op_(:is_map, [access_([])]), op_(:==, [access_([:key1]), :a]))
+    end
+
+    test "in filter style with binding" do
+      pattern = Pattern.new(fn %{} = b -> b.key1 == :a end)
+
+      assert pattern.code == and_(op_(:is_map, [access_([])]), op_(:==, [access_([:key1]), :a]))
+    end
+
+    test "in pattern style" do
+      pattern = Pattern.new(%{key1: :a})
+
+      assert pattern.code == and_(op_(:is_map, [access_([])]), op_(:==, [access_([:key1]), :a]))
+    end
+  end
+
   describe "to_filter(pattern)" do
     test "does not transform filter" do
       filter = quote do: fn %A{key1: 3} -> true end
