@@ -68,7 +68,7 @@ defmodule Pattern.Compiler do
   defp read_header(header, env), do: read_header(header, %{}, [], [], env)
 
   # * vars - accessible variables
-  # * codes - codes generated from guard expressions
+  # * codes - codes generated from guard expressions (reversed order of execution)
   # * prefix - prefix keys
   # * env - `Macro.Env`
   @spec read_header(Code.ast(), Code.vars(), [Code.t()], [term], Macro.Env.t()) ::
@@ -99,7 +99,17 @@ defmodule Pattern.Compiler do
         is_map(context_value)
       end
 
-    handle_key_value_pairs(pairs, vars, [code | codes], prefix, env)
+    code_checks_keys_exists =
+      pairs
+      |> Enum.map(fn {key, _value} ->
+        as_code context_value: prefix do
+          Map.has_key?(context_value, key)
+        end
+      end)
+
+    codes = code_checks_keys_exists ++ [code | codes]
+
+    handle_key_value_pairs(pairs, vars, codes, prefix, env)
   end
 
   # input: `%MyStruct{a: 1} = var`

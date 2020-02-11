@@ -133,7 +133,14 @@ defmodule Pattern.CompilerTest do
     test "in filter style" do
       pattern = Pattern.new(fn %{key1: :a} -> true end)
 
-      assert pattern.code == and_(op_(:is_map, [access_([])]), op_(:==, [access_([:key1]), :a]))
+      assert pattern.code ==
+               and_(
+                 op_(:is_map, [access_([])]),
+                 and_(
+                   call_(Map, :has_key?, [access_([]), :key1]),
+                   op_(:==, [access_([:key1]), :a])
+                 )
+               )
     end
 
     test "in filter style with binding" do
@@ -145,7 +152,14 @@ defmodule Pattern.CompilerTest do
     test "in pattern style" do
       pattern = Pattern.new(%{key1: :a})
 
-      assert pattern.code == and_(op_(:is_map, [access_([])]), op_(:==, [access_([:key1]), :a]))
+      assert pattern.code ==
+               and_(
+                 op_(:is_map, [access_([])]),
+                 and_(
+                   call_(Map, :has_key?, [access_([]), :key1]),
+                   op_(:==, [access_([:key1]), :a])
+                 )
+               )
     end
   end
 

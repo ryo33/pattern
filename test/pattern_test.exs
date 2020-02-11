@@ -400,5 +400,14 @@ defmodule PatternTest do
     end
   end
 
+  test "support map" do
+    pattern = Pattern.new(%{key1: :a, key2: nil})
+
+    assert Pattern.match?(pattern, %{key1: :a, key2: nil})
+    assert Pattern.match?(pattern, %{key1: :a, key2: nil, key3: :ok})
+    refute Pattern.match?(pattern, %{key1: :aaa, key2: nil, key3: :ok})
+    refute Pattern.match?(pattern, %{key1: :a})
+  end
+
   defp remove_meta(ast), do: Macro.prewalk(ast, &Macro.update_meta(&1, fn _ -> [] end))
 end
