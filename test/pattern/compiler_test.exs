@@ -161,6 +161,19 @@ defmodule Pattern.CompilerTest do
                  )
                )
     end
+
+    test "with string key" do
+      pattern = Pattern.new(%{"key1" => :a})
+
+      assert pattern.code ==
+               and_(
+                 op_(:is_map, [access_([])]),
+                 and_(
+                   call_(Map, :has_key?, [access_([]), "key1"]),
+                   op_(:==, [access_(["key1"]), :a])
+                 )
+               )
+    end
   end
 
   describe "to_filter(pattern)" do
