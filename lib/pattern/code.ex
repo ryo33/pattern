@@ -66,11 +66,7 @@ defmodule Pattern.Code do
   @spec walk(ast, vars, Macro.Env.t()) :: ast
   # input: `is_nil(x)`
   defp walk({op, _, args} = node, _vars, _env) when op in @additional_operators do
-    if Enum.any?(args, &access_exists_?(&1)) do
-      op_(op, args)
-    else
-      node
-    end
+    gen_op(op, args, node)
   end
 
   # Skips . operator (field access is handled in below)
@@ -114,9 +110,10 @@ defmodule Pattern.Code do
   end
 
   # input: `var`
-  defp walk({first, _, third} = node, vars, _env) when is_atom(first) and not is_list(third) do
-    if Map.has_key?(vars, first) do
-      keys = Map.get(vars, first)
+  defp walk({var_name, _, third} = node, vars, _env)
+       when is_atom(var_name) and not is_list(third) do
+    if Map.has_key?(vars, var_name) do
+      keys = Map.get(vars, var_name)
 
       access_(keys)
     else
@@ -128,11 +125,7 @@ defmodule Pattern.Code do
   defp walk({fun, _, args} = node, vars, env) when is_atom(fun) do
     if Macro.operator?(fun, length(args)) do
       # input: `left and right`
-      if Enum.any?(args, &access_exists_?(&1)) do
-        op_(fun, args)
-      else
-        node
-      end
+      gen_op(fun, args, node)
     else
       # input: `function_in_lexical_scope(arg1, arg2, ...)`
       gen_call(node, vars, env)
@@ -155,6 +148,15 @@ defmodule Pattern.Code do
       end)
 
     access_exists_?
+  end
+
+  # Generates :op code if the args has any :access codes
+  defp gen_op(fun, args, node) do
+    if Enum.any?(args, &access_exists_?(&1)) do
+      op_(fun, args)
+    else
+      node
+    end
   end
 
   # Generates :call code if the args has any :access codes

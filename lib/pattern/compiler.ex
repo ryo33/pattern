@@ -47,11 +47,12 @@ defmodule Pattern.Compiler do
     read_fncase({:->, [], [[header], expression]}, env)
   end
 
+  # input: header -> expression
   defp read_fncase({:->, _, [[header], expression]}, env) do
-    {vars, codes} = read_header(header, env)
+    {vars, guard_codes} = read_header(header, env)
 
     guard =
-      codes
+      guard_codes
       |> Enum.reverse()
       |> Code.all()
 
