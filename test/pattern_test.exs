@@ -409,5 +409,31 @@ defmodule PatternTest do
     refute Pattern.match?(pattern, %{key1: :a})
   end
 
+  test "support <> in expression" do
+    pattern = Pattern.new(fn %{key1: x} -> "a" <> x <> "c" == "abc" end)
+
+    assert Pattern.match?(pattern, %{key1: "b"})
+    refute Pattern.match?(pattern, %{key1: "c"})
+  end
+
+  describe "support <> in pattern match" do
+    test "with string input" do
+      pattern = Pattern.new(fn %{key1: "ab" <> x} -> x == "c" end)
+
+      assert Pattern.match?(pattern, %{key1: "abc"})
+      refute Pattern.match?(pattern, %{key1: "abd"})
+    end
+
+    test "with not string input" do
+      pattern = Pattern.new(fn %{key1: "ab" <> x} -> x == "c" end)
+      refute Pattern.match?(pattern, %{key1: 123})
+    end
+
+    test "with already trimmed string" do
+      pattern = Pattern.new(fn %{key1: "ab" <> x} -> x == "c" end)
+      refute Pattern.match?(pattern, %{key1: "c"})
+    end
+  end
+
   defp remove_meta(ast), do: Macro.prewalk(ast, &Macro.update_meta(&1, fn _ -> [] end))
 end

@@ -6,7 +6,7 @@ defmodule Pattern.Code do
   @type ast :: any
   @type key :: term
   @type keys :: [key]
-  @type vars :: %{atom => keys}
+  @type vars :: %{atom => t}
 
   @doc false
   @spec translate(ast, vars, Macro.Env.t()) :: t
@@ -15,7 +15,23 @@ defmodule Pattern.Code do
   end
 
   defmacro as_code(vars, do: block) do
-    translate(block, Enum.into(vars, %{}), __CALLER__)
+    # Puts :access_with_var label to each var to show an evaluated code of var includes :access code.
+    vars =
+      vars
+      |> Enum.map(fn {var_name, var} -> {var_name, {:access_with_var, [var]}} end)
+      |> Enum.into(%{})
+
+    translate(block, vars, __CALLER__)
+    # Remove :access_with_var label
+    |> Macro.postwalk(fn node ->
+      case node do
+        {:access_with_var, [var]} ->
+          var
+
+        node ->
+          node
+      end
+    end)
   end
 
   @doc false
@@ -61,7 +77,7 @@ defmodule Pattern.Code do
 
   def with_prefix(node, _prefix), do: node
 
-  @additional_operators [:is_nil, :to_string, :to_charlist, :is_map]
+  @additional_operators [:is_nil, :to_string, :to_charlist, :is_map, :is_binary]
 
   @spec walk(ast, vars, Macro.Env.t()) :: ast
   # input: `is_nil(x)`
@@ -73,13 +89,13 @@ defmodule Pattern.Code do
   defp walk({:., _, _} = node, _vars, _env), do: node
 
   # input: `value.key`
-  defp walk({{:., _, [{:access, keys}, key]}, _, []}, _vars, _env) do
-    access_(append_key(keys, key))
+  defp walk({{:., _, [value, key]}, _, []}, _vars, _env) do
+    gen_access_with_key(value, key)
   end
 
   # input: `value[key]`
-  defp walk({{:., _, [Access, :get]}, _, [{:access, keys}, key]}, _vars, _env) do
-    access_(append_key(keys, key))
+  defp walk({{:., _, [Access, :get]}, _, [value, key]}, _vars, _env) do
+    gen_access_with_key(value, key)
   end
 
   # input: `MyModule.func(arg1, arg2)`
@@ -113,22 +129,20 @@ defmodule Pattern.Code do
   defp walk({var_name, _, third} = node, vars, _env)
        when is_atom(var_name) and not is_list(third) do
     if Map.has_key?(vars, var_name) do
-      keys = Map.get(vars, var_name)
-
-      access_(keys)
+      Map.get(vars, var_name)
     else
       node
     end
   end
 
   # input: `left and right` or `function_in_lexical_scope(arg1, arg2, ...)`
-  defp walk({fun, _, args} = node, vars, env) when is_atom(fun) do
+  defp walk({fun, _, args} = node, _vars, env) when is_atom(fun) do
     if Macro.operator?(fun, length(args)) do
       # input: `left and right`
       gen_op(fun, args, node)
     else
       # input: `function_in_lexical_scope(arg1, arg2, ...)`
-      gen_call(node, vars, env)
+      gen_call(node, env)
     end
   end
 
@@ -140,6 +154,10 @@ defmodule Pattern.Code do
       Macro.prewalk(ast, false, fn node, access_exists_? ->
         case node do
           {:access, _} ->
+            {node, true}
+
+          # See `as_code/2`
+          {:access_with_var, [_var]} ->
             {node, true}
 
           node ->
@@ -160,7 +178,7 @@ defmodule Pattern.Code do
   end
 
   # Generates :call code if the args has any :access codes
-  defp gen_call({fun, _, args} = node, _vars, env) do
+  defp gen_call({fun, _, args} = node, env) do
     if Enum.any?(args, &access_exists_?(&1)) do
       arity = length(args)
 
@@ -191,6 +209,22 @@ defmodule Pattern.Code do
   defp append_key(keys, key) do
     quote bind_quoted: [keys: keys, key: key] do
       List.insert_at(keys, -1, key)
+    end
+  end
+
+  defp gen_access_with_key({:access, keys}, key) do
+    access_(append_key(keys, key))
+  end
+
+  defp gen_access_with_key(var, key) do
+    quote bind_quoted: [var: var, key: key] do
+      case var do
+        {:access, keys} ->
+          alias Pattern.Code
+          Code.access_(List.insert_at(keys, -1, key))
+        var ->
+          var[key]
+      end
     end
   end
 

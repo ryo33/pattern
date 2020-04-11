@@ -75,89 +75,120 @@ defmodule Pattern.Compiler do
   @spec read_header(Code.ast(), Code.vars(), [Code.t()], [term], Macro.Env.t()) ::
           {Code.vars(), [Code.t()]}
   # input: `%{key: atom} when atom in [:a, :b, :c]`
-  defp read_header({:when, _, [header, guard]}, vars, codes, prefix, env) do
+  defp read_header({:when, _, [header, guard]}, vars, assertion_codes, prefix, env) do
     # read the header
-    {vars, codes} = read_header(header, vars, codes, prefix, env)
+    {vars, assertion_codes} = read_header(header, vars, assertion_codes, prefix, env)
     # translate the guard case
-    codes = [Code.translate(guard, vars, env) | codes]
-    {vars, codes}
+    assertion_codes = [Code.translate(guard, vars, env) | assertion_codes]
+    {vars, assertion_codes}
   end
 
   # input: `%MyStruct{key1: var, key2: 42}`
-  defp read_header({:%, _, [module, {:%{}, _, pairs}]}, vars, codes, prefix, env) do
-    code =
-      as_code context_value: prefix do
-        is_map(context_value) and context_value.__struct__ == module
+  defp read_header({:%, _, [module, {:%{}, _, pairs}]}, vars, assertion_codes, prefix, env) do
+    context_value = Code.access_(prefix)
+
+    assertion_code =
+      as_code value: context_value do
+        is_map(value) and value.__struct__ == module
       end
 
-    handle_key_value_pairs(pairs, vars, [code | codes], prefix, env)
+    handle_key_value_pairs(pairs, vars, [assertion_code | assertion_codes], prefix, env)
   end
 
   # input: `%{key1: var, key2: 42}`
-  defp read_header({:%{}, _, pairs}, vars, codes, prefix, env) do
-    code =
-      as_code context_value: prefix do
-        is_map(context_value)
+  defp read_header({:%{}, _, pairs}, vars, assertion_codes, prefix, env) do
+    context_value = Code.access_(prefix)
+
+    assertion_code =
+      as_code value: context_value do
+        is_map(value)
       end
 
-    code_checks_keys_exists =
+    assertion_code_checks_keys_exists =
       pairs
       |> Enum.map(fn {key, _value} ->
-        as_code context_value: prefix do
-          Map.has_key?(context_value, key)
+        as_code value: context_value do
+          Map.has_key?(value, key)
         end
       end)
 
-    codes = code_checks_keys_exists ++ [code | codes]
+    assertion_codes = assertion_code_checks_keys_exists ++ [assertion_code | assertion_codes]
 
-    handle_key_value_pairs(pairs, vars, codes, prefix, env)
+    handle_key_value_pairs(pairs, vars, assertion_codes, prefix, env)
   end
 
   # input: `%MyStruct{a: 1} = var`
-  defp read_header({:=, _, [struct, {var, meta, context}]}, vars, codes, prefix, env) do
+  defp read_header({:=, _, [struct, {var, meta, context}]}, vars, assertion_codes, prefix, env) do
     # read the struct
-    {vars, codes} = read_header(struct, vars, codes, prefix, env)
+    {vars, assertion_codes} = read_header(struct, vars, assertion_codes, prefix, env)
     # read the var
-    read_header({var, meta, context}, vars, codes, prefix, env)
+    read_header({var, meta, context}, vars, assertion_codes, prefix, env)
   end
 
   # input: `^var`
-  defp read_header({:^, _, [var]}, vars, codes, prefix, _env) do
-    code =
-      as_code context_value: prefix do
-        context_value == var
+  defp read_header({:^, _, [var]}, vars, assertion_codes, prefix, _env) do
+    context_value = Code.access_(prefix)
+
+    assertion_code =
+      as_code value: context_value do
+        value == var
       end
 
-    {vars, [code | codes]}
+    {vars, [assertion_code | assertion_codes]}
+  end
+
+  # input: `"str" <> var`
+  defp read_header({:<>, _, [leading, {var_name, _, _}]}, vars, assertion_codes, prefix, _env) do
+    context_value = Code.access_(prefix)
+
+    assertion_code =
+      as_code value: context_value do
+        is_binary(value) and String.starts_with?(value, leading)
+      end
+
+    assertion_codes = [assertion_code | assertion_codes]
+
+    var_code =
+      as_code value: context_value do
+        String.trim_leading(value, leading)
+      end
+
+    vars = Map.put(vars, var_name, var_code)
+
+    {vars, assertion_codes}
   end
 
   # input: `var`
-  defp read_header({var, _, _}, vars, codes, prefix, _env) do
-    case Map.get(vars, var) do
+  defp read_header({var_name, _, _}, vars, assertion_codes, prefix, _env) do
+    case Map.get(vars, var_name) do
       # bind the current value to the new variable.
       nil ->
-        vars = Map.put(vars, var, prefix)
-        {vars, codes}
+        vars = Map.put(vars, var_name, Code.access_(prefix))
+        {vars, assertion_codes}
 
       # variable exists.
-      access ->
-        code =
-          as_code context_value: prefix, var: access do
-            context_value == var
+      var_code ->
+        context_value = Code.access_(prefix)
+
+        assertion_code =
+          as_code value: context_value, var: var_code do
+            value == var
           end
 
-        {vars, [code | codes]}
+        {vars, [assertion_code | assertion_codes]}
     end
   end
 
   # input: `42`
-  defp read_header(value, vars, codes, prefix, _env) do
-    code =
-      as_code context_value: prefix do
-        context_value == value
+  defp read_header(actual_value, vars, assertion_codes, prefix, _env) do
+    context_value = Code.access_(prefix)
+
+    assertion_code =
+      as_code value: context_value do
+        value == actual_value
       end
 
-    {vars, [code | codes]}
+    {vars, [assertion_code | assertion_codes]}
   end
 
   # Handles `[key1: var, key2: 42]` for a map or struct

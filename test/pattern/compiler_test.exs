@@ -193,5 +193,26 @@ defmodule Pattern.CompilerTest do
     end
   end
 
+  test "match with <> operator in expression" do
+    pattern = Pattern.new(fn %A{key1: "ab" <> x} -> x == "aaa" or x == "bbb" end)
+
+    expected =
+      and_(
+        and_(
+          and_(op_(:is_map, [access_([])]), op_(:==, [access_([:__struct__]), A])),
+          and_(
+            op_(:is_binary, [access_([:key1])]),
+            call_(String, :starts_with?, [access_([:key1]), "ab"])
+          )
+        ),
+        or_(
+          op_(:==, [call_(String, :trim_leading, [access_([:key1]), "ab"]), "aaa"]),
+          op_(:==, [call_(String, :trim_leading, [access_([:key1]), "ab"]), "bbb"])
+        )
+      )
+
+    assert expected == pattern.code
+  end
+
   defp call(_), do: true
 end

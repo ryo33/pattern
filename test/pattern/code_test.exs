@@ -404,7 +404,7 @@ defmodule Pattern.CodeTest do
       binded = 3
 
       code =
-        as_code value: [:key1, :key2] do
+        as_code value: {:access, [:key1, :key2]} do
           value.key3 == binded
         end
 
